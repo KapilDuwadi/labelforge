@@ -317,6 +317,7 @@
         printCount: 1,
         customsQty: '',
         valueUsd: 0,
+        enabled: true,
       };
       state.templates.push(tmpl);
       saveTemplates();
@@ -342,6 +343,14 @@
       renderSidebar();
       renderEditor();
       renderPreview();
+    }
+
+    function toggleTemplate(id) {
+      const tmpl = state.templates.find(t => t.id === id);
+      if (!tmpl) return;
+      tmpl.enabled = !tmpl.enabled;
+      saveTemplates();
+      renderSidebar();
     }
 
     function selectTemplate(id, force) {
@@ -396,28 +405,43 @@
 
       state.templates.forEach(tmpl => {
         const isSelected = tmpl.id === state.selectedId;
+        const enabled    = tmpl.enabled !== false; // default true for old records
+
         const li = document.createElement('li');
-        li.className = 'flex items-center gap-1.5 rounded px-2 py-2.5 cursor-pointer group transition-colors ' +
+        li.className = 'flex items-center gap-2 rounded px-2 py-2 cursor-pointer group transition-colors ' +
           (isSelected ? 'bg-blue-100 text-blue-800' : 'hover:bg-gray-100 text-gray-700');
         li.dataset.id = tmpl.id;
         li.dataset.action = 'select';
 
+        // Checkbox
+        const chk = document.createElement('input');
+        chk.type = 'checkbox';
+        chk.checked = enabled;
+        chk.className = 'shrink-0 accent-blue-600 cursor-pointer';
+        chk.dataset.id = tmpl.id;
+        chk.dataset.action = 'toggle';
+        chk.title = enabled ? 'Uncheck to exclude from exports' : 'Check to include in exports';
+
         const nameSpan = document.createElement('span');
-        nameSpan.className = 'flex-1 text-sm md:text-xs font-medium truncate pointer-events-none';
+        nameSpan.className = 'flex-1 text-sm md:text-xs font-medium truncate pointer-events-none ' +
+          (!enabled ? 'line-through opacity-40' : '');
         nameSpan.textContent = tmpl.name || 'Unnamed';
 
         const badge = document.createElement('span');
-        badge.className = 'text-xs shrink-0 ' + (isSelected ? 'text-blue-500' : 'text-gray-400');
+        badge.className = 'text-xs shrink-0 ' +
+          (!enabled ? 'opacity-30 ' : '') +
+          (isSelected ? 'text-blue-500' : 'text-gray-400');
         badge.textContent = '×' + tmpl.printCount;
 
         const delBtn = document.createElement('button');
         delBtn.type = 'button';
-        delBtn.className = 'opacity-0 group-hover:opacity-100 text-red-400 hover:text-red-600 text-xs leading-none shrink-0 transition-opacity ml-0.5 p-1';
+        delBtn.className = 'opacity-0 group-hover:opacity-100 text-red-400 hover:text-red-600 text-xs leading-none shrink-0 transition-opacity p-1';
         delBtn.textContent = '✕';
         delBtn.dataset.id = tmpl.id;
         delBtn.dataset.action = 'delete';
         delBtn.title = 'Delete label';
 
+        li.appendChild(chk);
         li.appendChild(nameSpan);
         li.appendChild(badge);
         li.appendChild(delBtn);
@@ -606,6 +630,7 @@
 
       const queue = [];
       for (const tmpl of state.templates) {
+        if (tmpl.enabled === false) continue;
         const n = Math.max(1, Math.floor(tmpl.printCount || 1));
         for (let i = 0; i < n; i++) queue.push(tmpl);
       }
@@ -723,8 +748,9 @@
       cy += HDR_H;
 
       // Data rows
+      const activeTemplates = state.templates.filter(t => t.enabled !== false);
       let grandTotal = 0;
-      state.templates.forEach((tmpl, idx) => {
+      activeTemplates.forEach((tmpl, idx) => {
         // Customs qty: use customsQty field if set, else fall back to printCount
         const qtyText    = tmpl.customsQty || String(Math.max(1, Math.floor(tmpl.printCount || 1)));
         const qtyNum     = parseFloat(qtyText);
@@ -878,12 +904,22 @@
       document.getElementById('sidebar-list').addEventListener('click', function (e) {
         const target = e.target.closest('[data-id]');
         if (!target) return;
-        if (target.dataset.action === 'delete') {
+        if (target.dataset.action === 'toggle') {
+          e.stopPropagation();
+          // handled by change event below
+        } else if (target.dataset.action === 'delete') {
           e.stopPropagation();
           handleDelete(target.dataset.id);
         } else if (target.dataset.action === 'select') {
           selectTemplate(target.dataset.id, false);
           setActiveTab('editor');
+        }
+      });
+
+      document.getElementById('sidebar-list').addEventListener('change', function (e) {
+        if (e.target.dataset.action === 'toggle') {
+          e.stopPropagation();
+          toggleTemplate(e.target.dataset.id);
         }
       });
 
