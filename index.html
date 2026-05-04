@@ -11,8 +11,13 @@
     ::-webkit-scrollbar-track { background: #f1f5f9; }
     ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 3px; }
 
+    /* On desktop (md+), always show all panels regardless of mobile hidden state */
+    @media (min-width: 768px) {
+      .mobile-panel { display: flex !important; }
+    }
+
     #preview-label {
-      width: 340px;
+      width: min(340px, 100%);
       min-height: 226px;
       border: 1.5px dashed #555;
       font-family: Helvetica, Arial, sans-serif;
@@ -40,22 +45,20 @@
 <body class="h-screen flex flex-col bg-gray-100 text-gray-800 overflow-hidden">
 
   <!-- Header -->
-  <header class="bg-slate-800 text-white px-5 py-3 flex items-center justify-between shadow-md shrink-0">
-    <div>
-      <h1 class="text-lg font-bold tracking-tight">LabelForge</h1>
-      <p class="text-slate-400 text-xs mt-0.5">Design labels · generate print-ready PDFs</p>
+  <header class="bg-slate-800 text-white px-4 py-2.5 flex items-center justify-between shadow-md shrink-0 gap-3">
+    <div class="min-w-0">
+      <h1 class="text-base font-bold tracking-tight leading-tight">LabelForge</h1>
+      <p class="text-slate-400 text-xs mt-0.5 hidden sm:block">Design labels · generate print-ready PDFs</p>
     </div>
-    <div class="flex items-center gap-3">
-      <label class="text-sm text-slate-300">Paper:
-        <select id="paper-size" class="ml-1 bg-slate-700 text-white text-sm rounded px-2 py-1 border border-slate-600 focus:outline-none focus:border-blue-400">
-          <option value="letter">Letter (US)</option>
-          <option value="a4">A4</option>
-        </select>
-      </label>
+    <div class="flex items-center gap-2 shrink-0">
+      <select id="paper-size" class="bg-slate-700 text-white text-xs rounded px-2 py-1.5 border border-slate-600 focus:outline-none focus:border-blue-400">
+        <option value="letter">Letter</option>
+        <option value="a4">A4</option>
+      </select>
       <button id="generate-pdf-btn"
-        class="bg-green-600 hover:bg-green-500 disabled:bg-slate-600 disabled:opacity-60 disabled:cursor-not-allowed text-white text-sm font-semibold px-4 py-2 rounded transition-colors"
+        class="bg-green-600 hover:bg-green-500 disabled:bg-slate-600 disabled:opacity-60 disabled:cursor-not-allowed text-white text-xs font-semibold px-3 py-1.5 rounded transition-colors whitespace-nowrap"
         disabled>
-        ↓ Generate PDF
+        ↓ PDF
       </button>
     </div>
   </header>
@@ -64,10 +67,11 @@
   <main class="flex flex-1 overflow-hidden">
 
     <!-- Sidebar -->
-    <aside class="w-52 bg-white border-r border-gray-200 flex flex-col shrink-0">
+    <aside id="sidebar-panel"
+      class="mobile-panel flex-col w-full md:w-52 bg-white border-r border-gray-200 shrink-0">
       <div class="p-3 border-b border-gray-200">
         <button id="new-btn"
-          class="w-full bg-blue-600 hover:bg-blue-500 text-white text-sm font-semibold py-2 px-3 rounded transition-colors">
+          class="w-full bg-blue-600 hover:bg-blue-500 text-white text-sm font-semibold py-2.5 px-3 rounded transition-colors">
           + New Label
         </button>
       </div>
@@ -75,9 +79,10 @@
     </aside>
 
     <!-- Editor -->
-    <section class="flex-1 overflow-y-auto p-6">
-      <div class="max-w-lg">
-        <h2 id="editor-title" class="text-base font-semibold text-gray-600 mb-5">Select or create a label to begin</h2>
+    <section id="editor-panel"
+      class="mobile-panel hidden flex-col flex-1 overflow-y-auto p-4 md:p-6">
+      <div class="w-full max-w-lg mx-auto md:mx-0">
+        <h2 id="editor-title" class="text-base font-semibold text-gray-600 mb-4">Select or create a label to begin</h2>
         <form id="editor-form" class="space-y-4">
 
           <div>
@@ -106,7 +111,7 @@
               class="w-full border border-gray-300 rounded px-3 py-2 text-sm focus:outline-none focus:border-blue-400 disabled:bg-gray-50 disabled:text-gray-400 resize-none" disabled></textarea>
           </div>
 
-          <div class="grid grid-cols-2 gap-4">
+          <div class="grid grid-cols-2 gap-3">
             <div>
               <label class="block text-xs font-semibold text-gray-600 mb-1">Country of Origin</label>
               <input type="text" id="f-country" placeholder="Nepal"
@@ -125,7 +130,7 @@
               class="w-full border border-gray-300 rounded px-3 py-2 text-sm focus:outline-none focus:border-blue-400 disabled:bg-gray-50 disabled:text-gray-400" disabled>
           </div>
 
-          <div class="flex justify-end pt-1">
+          <div class="flex justify-end pt-1 pb-6 md:pb-1">
             <button type="button" id="save-btn"
               class="bg-green-600 hover:bg-green-500 disabled:bg-gray-300 disabled:cursor-not-allowed text-white text-sm font-semibold px-5 py-2 rounded transition-colors"
               disabled>
@@ -138,11 +143,12 @@
     </section>
 
     <!-- Preview -->
-    <section class="w-80 bg-gray-50 border-l border-gray-200 flex flex-col shrink-0">
+    <section id="preview-panel"
+      class="mobile-panel hidden flex-col w-full md:w-80 bg-gray-50 border-l border-gray-200 shrink-0">
       <div class="px-4 py-3 border-b border-gray-200">
         <h3 class="text-xs font-semibold text-gray-500 uppercase tracking-wider">Label Preview</h3>
       </div>
-      <div class="flex-1 overflow-y-auto flex flex-col items-center px-4 py-6 gap-4">
+      <div class="flex-1 overflow-y-auto flex flex-col items-center px-4 py-6 gap-4 pb-20 md:pb-6">
         <p id="preview-empty" class="text-gray-400 text-xs italic text-center">Select a label to preview</p>
         <div id="preview-label" class="hidden shadow-sm"></div>
         <p class="text-gray-400 text-xs text-center hidden" id="preview-note">90 × 60 mm · dotted lines = cut guides</p>
@@ -151,6 +157,22 @@
 
   </main>
 
+  <!-- Mobile tab bar (hidden on desktop) -->
+  <nav class="md:hidden shrink-0 bg-white border-t border-gray-200 flex safe-bottom">
+    <button class="tab-btn flex-1 flex flex-col items-center justify-center py-2.5 gap-0.5 text-blue-600 border-t-2 border-blue-600 transition-colors" data-tab="sidebar">
+      <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"/></svg>
+      <span class="text-xs font-semibold">Labels</span>
+    </button>
+    <button class="tab-btn flex-1 flex flex-col items-center justify-center py-2.5 gap-0.5 text-gray-400 border-t-2 border-transparent transition-colors" data-tab="editor">
+      <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>
+      <span class="text-xs font-semibold">Edit</span>
+    </button>
+    <button class="tab-btn flex-1 flex flex-col items-center justify-center py-2.5 gap-0.5 text-gray-400 border-t-2 border-transparent transition-colors" data-tab="preview">
+      <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>
+      <span class="text-xs font-semibold">Preview</span>
+    </button>
+  </nav>
+
   <script>
     // ── State ────────────────────────────────────────────────────────────────
     const state = {
@@ -158,7 +180,32 @@
       selectedId: null,
       paperSize: 'letter',
       isDirty: false,
+      activeTab: 'sidebar',
     };
+
+    // ── Mobile tabs ──────────────────────────────────────────────────────────
+    const PANELS = { sidebar: 'sidebar-panel', editor: 'editor-panel', preview: 'preview-panel' };
+
+    function isMobile() { return window.innerWidth < 768; }
+
+    function setActiveTab(tab) {
+      state.activeTab = tab;
+      if (!isMobile()) return;
+
+      Object.entries(PANELS).forEach(([name, id]) => {
+        const panel = document.getElementById(id);
+        if (name === tab) panel.classList.remove('hidden');
+        else panel.classList.add('hidden');
+      });
+
+      document.querySelectorAll('.tab-btn').forEach(btn => {
+        const active = btn.dataset.tab === tab;
+        btn.classList.toggle('text-blue-600', active);
+        btn.classList.toggle('border-blue-600', active);
+        btn.classList.toggle('text-gray-400', !active);
+        btn.classList.toggle('border-transparent', !active);
+      });
+    }
 
     // ── Storage ──────────────────────────────────────────────────────────────
     function generateId() { return crypto.randomUUID(); }
@@ -197,6 +244,7 @@
       saveTemplates();
       renderSidebar();
       selectTemplate(tmpl.id, true);
+      setActiveTab('editor');
     }
 
     function updateTemplate(id, fields) {
@@ -234,13 +282,13 @@
 
     function getFormValues() {
       return {
-        name:           document.getElementById('f-name').value.trim(),
-        description:    document.getElementById('f-description').value,
-        ingredients:    document.getElementById('f-ingredients').value,
-        process:        document.getElementById('f-process').value,
-        countryOfOrigin:document.getElementById('f-country').value,
-        netWeight:      document.getElementById('f-weight').value,
-        printCount:     Math.max(1, Math.floor(Number(document.getElementById('f-count').value) || 1)),
+        name:            document.getElementById('f-name').value.trim(),
+        description:     document.getElementById('f-description').value,
+        ingredients:     document.getElementById('f-ingredients').value,
+        process:         document.getElementById('f-process').value,
+        countryOfOrigin: document.getElementById('f-country').value,
+        netWeight:       document.getElementById('f-weight').value,
+        printCount:      Math.max(1, Math.floor(Number(document.getElementById('f-count').value) || 1)),
       };
     }
 
@@ -259,8 +307,8 @@
 
       if (!hasTemplates) {
         const empty = document.createElement('li');
-        empty.className = 'text-gray-400 text-xs italic text-center py-8';
-        empty.textContent = 'No labels yet';
+        empty.className = 'text-gray-400 text-xs italic text-center py-10';
+        empty.textContent = 'No labels yet — tap + New Label';
         list.appendChild(empty);
         return;
       }
@@ -268,13 +316,13 @@
       state.templates.forEach(tmpl => {
         const isSelected = tmpl.id === state.selectedId;
         const li = document.createElement('li');
-        li.className = 'flex items-center gap-1.5 rounded px-2 py-2 cursor-pointer group transition-colors ' +
+        li.className = 'flex items-center gap-1.5 rounded px-2 py-2.5 cursor-pointer group transition-colors ' +
           (isSelected ? 'bg-blue-100 text-blue-800' : 'hover:bg-gray-100 text-gray-700');
         li.dataset.id = tmpl.id;
         li.dataset.action = 'select';
 
         const nameSpan = document.createElement('span');
-        nameSpan.className = 'flex-1 text-xs font-medium truncate pointer-events-none';
+        nameSpan.className = 'flex-1 text-sm md:text-xs font-medium truncate pointer-events-none';
         nameSpan.textContent = tmpl.name || 'Unnamed';
 
         const badge = document.createElement('span');
@@ -283,7 +331,7 @@
 
         const delBtn = document.createElement('button');
         delBtn.type = 'button';
-        delBtn.className = 'opacity-0 group-hover:opacity-100 text-red-400 hover:text-red-600 text-xs leading-none shrink-0 transition-opacity ml-0.5';
+        delBtn.className = 'opacity-0 group-hover:opacity-100 text-red-400 hover:text-red-600 text-xs leading-none shrink-0 transition-opacity ml-0.5 p-1';
         delBtn.textContent = '✕';
         delBtn.dataset.id = tmpl.id;
         delBtn.dataset.action = 'delete';
@@ -305,8 +353,7 @@
         title.textContent = 'Select or create a label to begin';
         setFormEnabled(false);
         FIELDS.forEach(id => {
-          const el = document.getElementById(id);
-          el.value = id === 'f-count' ? '1' : '';
+          document.getElementById(id).value = id === 'f-count' ? '1' : '';
         });
         return;
       }
@@ -350,9 +397,7 @@
       label.innerHTML = '';
 
       label.appendChild(el('div', 'pv-name', v.name || 'Product Name'));
-
       if (v.description) label.appendChild(el('div', 'pv-desc', v.description));
-
       label.appendChild(el('hr', 'pv-hr'));
 
       if (v.ingredients) {
@@ -369,29 +414,24 @@
         label.appendChild(proc);
       }
 
-      // Bottom strip
       const bot = el('div', 'pv-bot');
-
       if (v.netWeight) {
         const half = el('div', 'pv-bhalf');
         half.appendChild(el('div', 'pv-bl', 'Net Weight'));
         half.appendChild(el('div', 'pv-bv', v.netWeight));
         bot.appendChild(half);
       }
-
       if (v.countryOfOrigin) {
         const half = el('div', 'pv-bhalf');
         half.appendChild(el('div', 'pv-bl', 'Country of Origin'));
         half.appendChild(el('div', 'pv-bv', v.countryOfOrigin));
         bot.appendChild(half);
       }
-
       label.appendChild(bot);
     }
 
     // ── PDF ──────────────────────────────────────────────────────────────────
     function drawLabel(doc, tmpl, x, y, w, h) {
-      // Dotted cut border
       doc.setDrawColor(100, 100, 100);
       doc.setLineWidth(0.25);
       doc.setLineDash([1.5, 1.5], 0);
@@ -402,7 +442,6 @@
       const contentW = w - PAD * 2;
       let cy = y + PAD + 4;
 
-      // Product name
       doc.setFont('helvetica', 'bold');
       doc.setFontSize(11);
       doc.setTextColor(20, 20, 20);
@@ -410,7 +449,6 @@
       doc.text(nameLine, x + PAD, cy);
       cy += 5.5;
 
-      // Description
       if (tmpl.description && tmpl.description.trim()) {
         doc.setFont('helvetica', 'normal');
         doc.setFontSize(7.5);
@@ -420,13 +458,11 @@
         cy += lines.length * 3.4 + 1.5;
       }
 
-      // Gray divider
       doc.setDrawColor(210, 210, 210);
       doc.setLineWidth(0.2);
       doc.line(x + PAD, cy, x + w - PAD, cy);
       cy += 3.5;
 
-      // Ingredients
       if (tmpl.ingredients && tmpl.ingredients.trim()) {
         doc.setFont('helvetica', 'bold');
         doc.setFontSize(7);
@@ -440,7 +476,6 @@
         cy += lines.length * 3.2 + 2;
       }
 
-      // Process
       if (tmpl.process && tmpl.process.trim()) {
         doc.setFont('helvetica', 'bold');
         doc.setFontSize(7);
@@ -453,7 +488,6 @@
         doc.text(lines, x + PAD, cy);
       }
 
-      // Bottom strip — anchored from label bottom
       const stripY = y + h - 14;
       doc.setDrawColor(210, 210, 210);
       doc.setLineWidth(0.2);
@@ -461,7 +495,6 @@
 
       const halfW = contentW / 2;
 
-      // Net weight (left)
       doc.setFont('helvetica', 'bold');
       doc.setFontSize(6);
       doc.setTextColor(120, 120, 120);
@@ -471,7 +504,6 @@
       doc.setTextColor(20, 20, 20);
       doc.text(tmpl.netWeight || '—', x + PAD, stripY + 8);
 
-      // Country (right)
       const rightX = x + PAD + halfW + 2;
       doc.setFont('helvetica', 'bold');
       doc.setFontSize(6);
@@ -489,7 +521,6 @@
         return;
       }
 
-      // Build print queue
       const queue = [];
       for (const tmpl of state.templates) {
         const n = Math.max(1, Math.floor(tmpl.printCount || 1));
@@ -505,16 +536,15 @@
         format: isLetter ? 'letter' : 'a4',
       });
 
-      // Layout constants
-      const MARGIN_X  = isLetter ? 12.95 : 10;
-      const MARGIN_Y  = 15;
-      const LABEL_W   = 90;
-      const LABEL_H   = 60;
-      const GAP_X     = isLetter ? 9 : 10;
-      const GAP_Y     = 7;
-      const COLS      = 2;
-      const ROWS      = 3;
-      const PER_PAGE  = COLS * ROWS;
+      const MARGIN_X = isLetter ? 12.95 : 10;
+      const MARGIN_Y = 15;
+      const LABEL_W  = 90;
+      const LABEL_H  = 60;
+      const GAP_X    = isLetter ? 9 : 10;
+      const GAP_Y    = 7;
+      const COLS     = 2;
+      const ROWS     = 3;
+      const PER_PAGE = COLS * ROWS;
 
       for (let i = 0; i < queue.length; i++) {
         const slot = i % PER_PAGE;
@@ -561,7 +591,6 @@
         state.paperSize = this.value;
       });
 
-      // Sidebar delegation
       document.getElementById('sidebar-list').addEventListener('click', function (e) {
         const target = e.target.closest('[data-id]');
         if (!target) return;
@@ -570,13 +599,17 @@
           handleDelete(target.dataset.id);
         } else if (target.dataset.action === 'select') {
           selectTemplate(target.dataset.id, false);
+          setActiveTab('editor');
         }
       });
 
-      // Editor form live update
       document.getElementById('editor-form').addEventListener('input', function () {
         state.isDirty = true;
         renderPreview();
+      });
+
+      document.querySelectorAll('.tab-btn').forEach(btn => {
+        btn.addEventListener('click', () => setActiveTab(btn.dataset.tab));
       });
     }
 
@@ -587,6 +620,7 @@
       renderEditor();
       renderPreview();
       initEventListeners();
+      setActiveTab('sidebar');
     });
   </script>
 </body>
