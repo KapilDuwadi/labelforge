@@ -1,0 +1,593 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>LabelForge</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <style>
+    ::-webkit-scrollbar { width: 5px; }
+    ::-webkit-scrollbar-track { background: #f1f5f9; }
+    ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 3px; }
+
+    #preview-label {
+      width: 340px;
+      min-height: 226px;
+      border: 1.5px dashed #555;
+      font-family: Helvetica, Arial, sans-serif;
+      padding: 10px 12px 48px 12px;
+      box-sizing: border-box;
+      background: white;
+      position: relative;
+      display: flex;
+      flex-direction: column;
+      gap: 3px;
+    }
+    .pv-name  { font-size: 13px; font-weight: bold; color: #111; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .pv-desc  { font-size: 9px; color: #555; line-height: 1.35; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+    .pv-hr    { border: none; border-top: 1px solid #ddd; margin: 2px 0; }
+    .pv-fl    { font-size: 7.5px; font-weight: bold; color: #333; margin-top: 2px; }
+    .pv-fv    { font-size: 8px; color: #444; line-height: 1.3; display: -webkit-box; -webkit-box-orient: vertical; overflow: hidden; }
+    .pv-bot   { position: absolute; bottom: 0; left: 0; right: 0; display: flex; border-top: 1px solid #ddd; padding: 5px 12px 8px; gap: 8px; background: white; }
+    .pv-bhalf { flex: 1; }
+    .pv-bl    { font-size: 6.5px; font-weight: bold; color: #888; text-transform: uppercase; letter-spacing: 0.03em; }
+    .pv-bv    { font-size: 9px; font-weight: 600; color: #111; }
+
+    @media print { body { display: none !important; } }
+  </style>
+</head>
+<body class="h-screen flex flex-col bg-gray-100 text-gray-800 overflow-hidden">
+
+  <!-- Header -->
+  <header class="bg-slate-800 text-white px-5 py-3 flex items-center justify-between shadow-md shrink-0">
+    <div>
+      <h1 class="text-lg font-bold tracking-tight">LabelForge</h1>
+      <p class="text-slate-400 text-xs mt-0.5">Design labels · generate print-ready PDFs</p>
+    </div>
+    <div class="flex items-center gap-3">
+      <label class="text-sm text-slate-300">Paper:
+        <select id="paper-size" class="ml-1 bg-slate-700 text-white text-sm rounded px-2 py-1 border border-slate-600 focus:outline-none focus:border-blue-400">
+          <option value="letter">Letter (US)</option>
+          <option value="a4">A4</option>
+        </select>
+      </label>
+      <button id="generate-pdf-btn"
+        class="bg-green-600 hover:bg-green-500 disabled:bg-slate-600 disabled:opacity-60 disabled:cursor-not-allowed text-white text-sm font-semibold px-4 py-2 rounded transition-colors"
+        disabled>
+        ↓ Generate PDF
+      </button>
+    </div>
+  </header>
+
+  <!-- Main -->
+  <main class="flex flex-1 overflow-hidden">
+
+    <!-- Sidebar -->
+    <aside class="w-52 bg-white border-r border-gray-200 flex flex-col shrink-0">
+      <div class="p-3 border-b border-gray-200">
+        <button id="new-btn"
+          class="w-full bg-blue-600 hover:bg-blue-500 text-white text-sm font-semibold py-2 px-3 rounded transition-colors">
+          + New Label
+        </button>
+      </div>
+      <ul id="sidebar-list" class="flex-1 overflow-y-auto p-2 space-y-1"></ul>
+    </aside>
+
+    <!-- Editor -->
+    <section class="flex-1 overflow-y-auto p-6">
+      <div class="max-w-lg">
+        <h2 id="editor-title" class="text-base font-semibold text-gray-600 mb-5">Select or create a label to begin</h2>
+        <form id="editor-form" class="space-y-4">
+
+          <div>
+            <label class="block text-xs font-semibold text-gray-600 mb-1">
+              Product Name <span class="text-red-500">*</span>
+            </label>
+            <input type="text" id="f-name" placeholder="e.g. Himalayan Wild Honey"
+              class="w-full border border-gray-300 rounded px-3 py-2 text-sm focus:outline-none focus:border-blue-400 disabled:bg-gray-50 disabled:text-gray-400" disabled>
+          </div>
+
+          <div>
+            <label class="block text-xs font-semibold text-gray-600 mb-1">Description</label>
+            <textarea id="f-description" rows="2" placeholder="Short description of the product"
+              class="w-full border border-gray-300 rounded px-3 py-2 text-sm focus:outline-none focus:border-blue-400 disabled:bg-gray-50 disabled:text-gray-400 resize-none" disabled></textarea>
+          </div>
+
+          <div>
+            <label class="block text-xs font-semibold text-gray-600 mb-1">Ingredients</label>
+            <textarea id="f-ingredients" rows="3" placeholder="List all ingredients"
+              class="w-full border border-gray-300 rounded px-3 py-2 text-sm focus:outline-none focus:border-blue-400 disabled:bg-gray-50 disabled:text-gray-400 resize-none" disabled></textarea>
+          </div>
+
+          <div>
+            <label class="block text-xs font-semibold text-gray-600 mb-1">Process</label>
+            <textarea id="f-process" rows="2" placeholder="How it's made (e.g. Cold extracted, sun dried)"
+              class="w-full border border-gray-300 rounded px-3 py-2 text-sm focus:outline-none focus:border-blue-400 disabled:bg-gray-50 disabled:text-gray-400 resize-none" disabled></textarea>
+          </div>
+
+          <div class="grid grid-cols-2 gap-4">
+            <div>
+              <label class="block text-xs font-semibold text-gray-600 mb-1">Country of Origin</label>
+              <input type="text" id="f-country" placeholder="Nepal"
+                class="w-full border border-gray-300 rounded px-3 py-2 text-sm focus:outline-none focus:border-blue-400 disabled:bg-gray-50 disabled:text-gray-400" disabled>
+            </div>
+            <div>
+              <label class="block text-xs font-semibold text-gray-600 mb-1">Net Weight</label>
+              <input type="text" id="f-weight" placeholder="e.g. 100g / 3.5 oz"
+                class="w-full border border-gray-300 rounded px-3 py-2 text-sm focus:outline-none focus:border-blue-400 disabled:bg-gray-50 disabled:text-gray-400" disabled>
+            </div>
+          </div>
+
+          <div class="w-32">
+            <label class="block text-xs font-semibold text-gray-600 mb-1">Print Count</label>
+            <input type="number" id="f-count" min="1" step="1" value="1"
+              class="w-full border border-gray-300 rounded px-3 py-2 text-sm focus:outline-none focus:border-blue-400 disabled:bg-gray-50 disabled:text-gray-400" disabled>
+          </div>
+
+          <div class="flex justify-end pt-1">
+            <button type="button" id="save-btn"
+              class="bg-green-600 hover:bg-green-500 disabled:bg-gray-300 disabled:cursor-not-allowed text-white text-sm font-semibold px-5 py-2 rounded transition-colors"
+              disabled>
+              Save Changes
+            </button>
+          </div>
+
+        </form>
+      </div>
+    </section>
+
+    <!-- Preview -->
+    <section class="w-80 bg-gray-50 border-l border-gray-200 flex flex-col shrink-0">
+      <div class="px-4 py-3 border-b border-gray-200">
+        <h3 class="text-xs font-semibold text-gray-500 uppercase tracking-wider">Label Preview</h3>
+      </div>
+      <div class="flex-1 overflow-y-auto flex flex-col items-center px-4 py-6 gap-4">
+        <p id="preview-empty" class="text-gray-400 text-xs italic text-center">Select a label to preview</p>
+        <div id="preview-label" class="hidden shadow-sm"></div>
+        <p class="text-gray-400 text-xs text-center hidden" id="preview-note">90 × 60 mm · dotted lines = cut guides</p>
+      </div>
+    </section>
+
+  </main>
+
+  <script>
+    // ── State ────────────────────────────────────────────────────────────────
+    const state = {
+      templates: [],
+      selectedId: null,
+      paperSize: 'letter',
+      isDirty: false,
+    };
+
+    // ── Storage ──────────────────────────────────────────────────────────────
+    function generateId() { return crypto.randomUUID(); }
+
+    function loadTemplates() {
+      try {
+        const raw = localStorage.getItem('label_templates');
+        state.templates = raw ? JSON.parse(raw) : [];
+      } catch (e) {
+        console.warn('localStorage read failed:', e);
+        state.templates = [];
+      }
+    }
+
+    function saveTemplates() {
+      try {
+        localStorage.setItem('label_templates', JSON.stringify(state.templates));
+      } catch (e) {
+        console.warn('localStorage write failed:', e);
+      }
+    }
+
+    // ── Mutations ────────────────────────────────────────────────────────────
+    function createTemplate() {
+      const tmpl = {
+        id: generateId(),
+        name: 'New Label',
+        description: '',
+        ingredients: '',
+        process: '',
+        countryOfOrigin: 'Nepal',
+        netWeight: '',
+        printCount: 1,
+      };
+      state.templates.push(tmpl);
+      saveTemplates();
+      renderSidebar();
+      selectTemplate(tmpl.id, true);
+    }
+
+    function updateTemplate(id, fields) {
+      const idx = state.templates.findIndex(t => t.id === id);
+      if (idx === -1) return;
+      state.templates[idx] = { ...state.templates[idx], ...fields };
+      saveTemplates();
+    }
+
+    function deleteTemplate(id) {
+      state.templates = state.templates.filter(t => t.id !== id);
+      saveTemplates();
+      if (state.selectedId === id) {
+        state.selectedId = null;
+        state.isDirty = false;
+      }
+      renderSidebar();
+      renderEditor();
+      renderPreview();
+    }
+
+    function selectTemplate(id, force) {
+      if (!force && state.isDirty && state.selectedId !== id) {
+        if (!window.confirm('You have unsaved changes. Discard and switch?')) return;
+      }
+      state.selectedId = id;
+      state.isDirty = false;
+      renderSidebar();
+      renderEditor();
+      renderPreview();
+    }
+
+    // ── Form Helpers ─────────────────────────────────────────────────────────
+    const FIELDS = ['f-name','f-description','f-ingredients','f-process','f-country','f-weight','f-count'];
+
+    function getFormValues() {
+      return {
+        name:           document.getElementById('f-name').value.trim(),
+        description:    document.getElementById('f-description').value,
+        ingredients:    document.getElementById('f-ingredients').value,
+        process:        document.getElementById('f-process').value,
+        countryOfOrigin:document.getElementById('f-country').value,
+        netWeight:      document.getElementById('f-weight').value,
+        printCount:     Math.max(1, Math.floor(Number(document.getElementById('f-count').value) || 1)),
+      };
+    }
+
+    function setFormEnabled(on) {
+      FIELDS.forEach(id => { document.getElementById(id).disabled = !on; });
+      document.getElementById('save-btn').disabled = !on;
+    }
+
+    // ── Render: Sidebar ──────────────────────────────────────────────────────
+    function renderSidebar() {
+      const list = document.getElementById('sidebar-list');
+      list.innerHTML = '';
+
+      const hasTemplates = state.templates.length > 0;
+      document.getElementById('generate-pdf-btn').disabled = !hasTemplates;
+
+      if (!hasTemplates) {
+        const empty = document.createElement('li');
+        empty.className = 'text-gray-400 text-xs italic text-center py-8';
+        empty.textContent = 'No labels yet';
+        list.appendChild(empty);
+        return;
+      }
+
+      state.templates.forEach(tmpl => {
+        const isSelected = tmpl.id === state.selectedId;
+        const li = document.createElement('li');
+        li.className = 'flex items-center gap-1.5 rounded px-2 py-2 cursor-pointer group transition-colors ' +
+          (isSelected ? 'bg-blue-100 text-blue-800' : 'hover:bg-gray-100 text-gray-700');
+        li.dataset.id = tmpl.id;
+        li.dataset.action = 'select';
+
+        const nameSpan = document.createElement('span');
+        nameSpan.className = 'flex-1 text-xs font-medium truncate pointer-events-none';
+        nameSpan.textContent = tmpl.name || 'Unnamed';
+
+        const badge = document.createElement('span');
+        badge.className = 'text-xs shrink-0 ' + (isSelected ? 'text-blue-500' : 'text-gray-400');
+        badge.textContent = '×' + tmpl.printCount;
+
+        const delBtn = document.createElement('button');
+        delBtn.type = 'button';
+        delBtn.className = 'opacity-0 group-hover:opacity-100 text-red-400 hover:text-red-600 text-xs leading-none shrink-0 transition-opacity ml-0.5';
+        delBtn.textContent = '✕';
+        delBtn.dataset.id = tmpl.id;
+        delBtn.dataset.action = 'delete';
+        delBtn.title = 'Delete label';
+
+        li.appendChild(nameSpan);
+        li.appendChild(badge);
+        li.appendChild(delBtn);
+        list.appendChild(li);
+      });
+    }
+
+    // ── Render: Editor ───────────────────────────────────────────────────────
+    function renderEditor() {
+      const tmpl = state.templates.find(t => t.id === state.selectedId);
+      const title = document.getElementById('editor-title');
+
+      if (!tmpl) {
+        title.textContent = 'Select or create a label to begin';
+        setFormEnabled(false);
+        FIELDS.forEach(id => {
+          const el = document.getElementById(id);
+          el.value = id === 'f-count' ? '1' : '';
+        });
+        return;
+      }
+
+      title.textContent = 'Edit Label';
+      setFormEnabled(true);
+      document.getElementById('f-name').value         = tmpl.name;
+      document.getElementById('f-description').value  = tmpl.description;
+      document.getElementById('f-ingredients').value  = tmpl.ingredients;
+      document.getElementById('f-process').value      = tmpl.process;
+      document.getElementById('f-country').value      = tmpl.countryOfOrigin;
+      document.getElementById('f-weight').value       = tmpl.netWeight;
+      document.getElementById('f-count').value        = tmpl.printCount;
+    }
+
+    // ── Render: Preview ──────────────────────────────────────────────────────
+    function el(tag, cls, text) {
+      const e = document.createElement(tag);
+      if (cls) e.className = cls;
+      if (text !== undefined) e.textContent = text;
+      return e;
+    }
+
+    function renderPreview() {
+      const label = document.getElementById('preview-label');
+      const empty = document.getElementById('preview-empty');
+      const note  = document.getElementById('preview-note');
+
+      if (!state.selectedId) {
+        label.classList.add('hidden');
+        empty.classList.remove('hidden');
+        note.classList.add('hidden');
+        return;
+      }
+
+      empty.classList.add('hidden');
+      label.classList.remove('hidden');
+      note.classList.remove('hidden');
+
+      const v = getFormValues();
+      label.innerHTML = '';
+
+      label.appendChild(el('div', 'pv-name', v.name || 'Product Name'));
+
+      if (v.description) label.appendChild(el('div', 'pv-desc', v.description));
+
+      label.appendChild(el('hr', 'pv-hr'));
+
+      if (v.ingredients) {
+        label.appendChild(el('div', 'pv-fl', 'Ingredients'));
+        const ing = el('div', 'pv-fv', v.ingredients);
+        ing.style.webkitLineClamp = '3';
+        label.appendChild(ing);
+      }
+
+      if (v.process) {
+        label.appendChild(el('div', 'pv-fl', 'Process'));
+        const proc = el('div', 'pv-fv', v.process);
+        proc.style.webkitLineClamp = '2';
+        label.appendChild(proc);
+      }
+
+      // Bottom strip
+      const bot = el('div', 'pv-bot');
+
+      if (v.netWeight) {
+        const half = el('div', 'pv-bhalf');
+        half.appendChild(el('div', 'pv-bl', 'Net Weight'));
+        half.appendChild(el('div', 'pv-bv', v.netWeight));
+        bot.appendChild(half);
+      }
+
+      if (v.countryOfOrigin) {
+        const half = el('div', 'pv-bhalf');
+        half.appendChild(el('div', 'pv-bl', 'Country of Origin'));
+        half.appendChild(el('div', 'pv-bv', v.countryOfOrigin));
+        bot.appendChild(half);
+      }
+
+      label.appendChild(bot);
+    }
+
+    // ── PDF ──────────────────────────────────────────────────────────────────
+    function drawLabel(doc, tmpl, x, y, w, h) {
+      // Dotted cut border
+      doc.setDrawColor(100, 100, 100);
+      doc.setLineWidth(0.25);
+      doc.setLineDash([1.5, 1.5], 0);
+      doc.rect(x, y, w, h);
+      doc.setLineDash([], 0);
+
+      const PAD = 3.5;
+      const contentW = w - PAD * 2;
+      let cy = y + PAD + 4;
+
+      // Product name
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(11);
+      doc.setTextColor(20, 20, 20);
+      const nameLine = doc.splitTextToSize(tmpl.name || 'Unnamed', contentW)[0];
+      doc.text(nameLine, x + PAD, cy);
+      cy += 5.5;
+
+      // Description
+      if (tmpl.description && tmpl.description.trim()) {
+        doc.setFont('helvetica', 'normal');
+        doc.setFontSize(7.5);
+        doc.setTextColor(90, 90, 90);
+        const lines = doc.splitTextToSize(tmpl.description, contentW).slice(0, 2);
+        doc.text(lines, x + PAD, cy);
+        cy += lines.length * 3.4 + 1.5;
+      }
+
+      // Gray divider
+      doc.setDrawColor(210, 210, 210);
+      doc.setLineWidth(0.2);
+      doc.line(x + PAD, cy, x + w - PAD, cy);
+      cy += 3.5;
+
+      // Ingredients
+      if (tmpl.ingredients && tmpl.ingredients.trim()) {
+        doc.setFont('helvetica', 'bold');
+        doc.setFontSize(7);
+        doc.setTextColor(50, 50, 50);
+        doc.text('Ingredients:', x + PAD, cy);
+        cy += 3.8;
+        doc.setFont('helvetica', 'normal');
+        doc.setTextColor(70, 70, 70);
+        const lines = doc.splitTextToSize(tmpl.ingredients, contentW).slice(0, 3);
+        doc.text(lines, x + PAD, cy);
+        cy += lines.length * 3.2 + 2;
+      }
+
+      // Process
+      if (tmpl.process && tmpl.process.trim()) {
+        doc.setFont('helvetica', 'bold');
+        doc.setFontSize(7);
+        doc.setTextColor(50, 50, 50);
+        doc.text('Process:', x + PAD, cy);
+        cy += 3.8;
+        doc.setFont('helvetica', 'normal');
+        doc.setTextColor(70, 70, 70);
+        const lines = doc.splitTextToSize(tmpl.process, contentW).slice(0, 2);
+        doc.text(lines, x + PAD, cy);
+      }
+
+      // Bottom strip — anchored from label bottom
+      const stripY = y + h - 14;
+      doc.setDrawColor(210, 210, 210);
+      doc.setLineWidth(0.2);
+      doc.line(x + PAD, stripY, x + w - PAD, stripY);
+
+      const halfW = contentW / 2;
+
+      // Net weight (left)
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(6);
+      doc.setTextColor(120, 120, 120);
+      doc.text('NET WEIGHT', x + PAD, stripY + 3.5);
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(8);
+      doc.setTextColor(20, 20, 20);
+      doc.text(tmpl.netWeight || '—', x + PAD, stripY + 8);
+
+      // Country (right)
+      const rightX = x + PAD + halfW + 2;
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(6);
+      doc.setTextColor(120, 120, 120);
+      doc.text('COUNTRY OF ORIGIN', rightX, stripY + 3.5);
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(8);
+      doc.setTextColor(20, 20, 20);
+      doc.text(tmpl.countryOfOrigin || 'Nepal', rightX, stripY + 8);
+    }
+
+    function generatePDF() {
+      if (state.templates.length === 0) {
+        alert('Add at least one label template before generating.');
+        return;
+      }
+
+      // Build print queue
+      const queue = [];
+      for (const tmpl of state.templates) {
+        const n = Math.max(1, Math.floor(tmpl.printCount || 1));
+        for (let i = 0; i < n; i++) queue.push(tmpl);
+      }
+
+      const { jsPDF } = window.jspdf;
+      const isLetter = state.paperSize === 'letter';
+
+      const doc = new jsPDF({
+        orientation: 'portrait',
+        unit: 'mm',
+        format: isLetter ? 'letter' : 'a4',
+      });
+
+      // Layout constants
+      const MARGIN_X  = isLetter ? 12.95 : 10;
+      const MARGIN_Y  = 15;
+      const LABEL_W   = 90;
+      const LABEL_H   = 60;
+      const GAP_X     = isLetter ? 9 : 10;
+      const GAP_Y     = 7;
+      const COLS      = 2;
+      const ROWS      = 3;
+      const PER_PAGE  = COLS * ROWS;
+
+      for (let i = 0; i < queue.length; i++) {
+        const slot = i % PER_PAGE;
+        if (slot === 0 && i > 0) doc.addPage();
+        const col = slot % COLS;
+        const row = Math.floor(slot / COLS);
+        const x = MARGIN_X + col * (LABEL_W + GAP_X);
+        const y = MARGIN_Y + row * (LABEL_H + GAP_Y);
+        drawLabel(doc, queue[i], x, y, LABEL_W, LABEL_H);
+      }
+
+      doc.save('labels.pdf');
+    }
+
+    // ── Handlers ─────────────────────────────────────────────────────────────
+    function handleSave() {
+      if (!state.selectedId) return;
+      const nameEl = document.getElementById('f-name');
+      if (!nameEl.value.trim()) {
+        nameEl.setCustomValidity('Product name is required');
+        nameEl.reportValidity();
+        return;
+      }
+      nameEl.setCustomValidity('');
+      updateTemplate(state.selectedId, getFormValues());
+      state.isDirty = false;
+      renderSidebar();
+    }
+
+    function handleDelete(id) {
+      const tmpl = state.templates.find(t => t.id === id);
+      if (!tmpl) return;
+      if (!window.confirm(`Delete "${tmpl.name}"? This cannot be undone.`)) return;
+      deleteTemplate(id);
+    }
+
+    // ── Event Wiring ─────────────────────────────────────────────────────────
+    function initEventListeners() {
+      document.getElementById('new-btn').addEventListener('click', createTemplate);
+      document.getElementById('save-btn').addEventListener('click', handleSave);
+      document.getElementById('generate-pdf-btn').addEventListener('click', generatePDF);
+
+      document.getElementById('paper-size').addEventListener('change', function () {
+        state.paperSize = this.value;
+      });
+
+      // Sidebar delegation
+      document.getElementById('sidebar-list').addEventListener('click', function (e) {
+        const target = e.target.closest('[data-id]');
+        if (!target) return;
+        if (target.dataset.action === 'delete') {
+          e.stopPropagation();
+          handleDelete(target.dataset.id);
+        } else if (target.dataset.action === 'select') {
+          selectTemplate(target.dataset.id, false);
+        }
+      });
+
+      // Editor form live update
+      document.getElementById('editor-form').addEventListener('input', function () {
+        state.isDirty = true;
+        renderPreview();
+      });
+    }
+
+    // ── Init ─────────────────────────────────────────────────────────────────
+    document.addEventListener('DOMContentLoaded', () => {
+      loadTemplates();
+      renderSidebar();
+      renderEditor();
+      renderPreview();
+      initEventListeners();
+    });
+  </script>
+</body>
+</html>
