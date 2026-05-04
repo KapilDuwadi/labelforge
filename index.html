@@ -139,18 +139,32 @@
             </div>
           </div>
 
-          <div class="grid grid-cols-2 gap-3">
-            <div>
-              <label class="block text-xs font-semibold text-gray-600 mb-1">Print Count</label>
-              <input type="number" id="f-count" min="1" step="1" value="1"
-                class="w-full border border-gray-300 rounded px-3 py-2 text-sm focus:outline-none focus:border-blue-400 disabled:bg-gray-50 disabled:text-gray-400" disabled>
-            </div>
-            <div>
-              <label class="block text-xs font-semibold text-gray-600 mb-1">
-                Value (USD) <span class="text-gray-400 font-normal">per unit</span>
-              </label>
-              <input type="number" id="f-value" min="0" step="0.01" placeholder="0.00"
-                class="w-full border border-gray-300 rounded px-3 py-2 text-sm focus:outline-none focus:border-blue-400 disabled:bg-gray-50 disabled:text-gray-400" disabled>
+          <div class="w-32">
+            <label class="block text-xs font-semibold text-gray-600 mb-1">Print Count</label>
+            <input type="number" id="f-count" min="1" step="1" value="1"
+              class="w-full border border-gray-300 rounded px-3 py-2 text-sm focus:outline-none focus:border-blue-400 disabled:bg-gray-50 disabled:text-gray-400" disabled>
+          </div>
+
+          <div class="bg-amber-50 border border-amber-200 rounded-lg p-3 space-y-3">
+            <p class="text-xs font-semibold text-amber-700">For Customs Declaration</p>
+            <div class="grid grid-cols-2 gap-3">
+              <div>
+                <label class="block text-xs font-semibold text-gray-600 mb-1">
+                  Quantity <span class="text-gray-400 font-normal">count or weight</span>
+                </label>
+                <input type="text" id="f-customs-qty" placeholder="e.g. 3 or 500g"
+                  class="w-full border border-gray-300 rounded px-3 py-2 text-sm focus:outline-none focus:border-blue-400 disabled:bg-gray-50 disabled:text-gray-400 bg-white" disabled>
+              </div>
+              <div>
+                <label class="block text-xs font-semibold text-gray-600 mb-1">
+                  Declared Value <span class="text-gray-400 font-normal">USD total</span>
+                </label>
+                <div class="relative">
+                  <span class="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm">$</span>
+                  <input type="number" id="f-value" min="0" step="0.01" placeholder="0.00"
+                    class="w-full border border-gray-300 rounded pl-6 pr-3 py-2 text-sm focus:outline-none focus:border-blue-400 disabled:bg-gray-50 disabled:text-gray-400 bg-white" disabled>
+                </div>
+              </div>
             </div>
           </div>
 
@@ -301,6 +315,7 @@
         countryOfOrigin: 'Nepal',
         netWeight: '',
         printCount: 1,
+        customsQty: '',
         valueUsd: 0,
       };
       state.templates.push(tmpl);
@@ -341,7 +356,7 @@
     }
 
     // ── Form Helpers ─────────────────────────────────────────────────────────
-    const FIELDS = ['f-name','f-description','f-ingredients','f-process','f-country','f-weight','f-count','f-value'];
+    const FIELDS = ['f-name','f-description','f-ingredients','f-process','f-country','f-weight','f-count','f-customs-qty','f-value'];
 
     function getFormValues() {
       return {
@@ -352,6 +367,7 @@
         countryOfOrigin: document.getElementById('f-country').value,
         netWeight:       document.getElementById('f-weight').value,
         printCount:      Math.max(1, Math.floor(Number(document.getElementById('f-count').value) || 1)),
+        customsQty:      document.getElementById('f-customs-qty').value.trim(),
         valueUsd:        Math.max(0, parseFloat(document.getElementById('f-value').value) || 0),
       };
     }
@@ -432,6 +448,7 @@
       document.getElementById('f-country').value      = tmpl.countryOfOrigin;
       document.getElementById('f-weight').value       = tmpl.netWeight;
       document.getElementById('f-count').value        = tmpl.printCount;
+      document.getElementById('f-customs-qty').value  = tmpl.customsQty || '';
       document.getElementById('f-value').value        = tmpl.valueUsd || '';
     }
 
@@ -708,9 +725,15 @@
       // Data rows
       let grandTotal = 0;
       state.templates.forEach((tmpl, idx) => {
-        const qty      = Math.max(1, Math.floor(tmpl.printCount || 1));
-        const unitVal  = parseFloat(tmpl.valueUsd) || 0;
-        const rowTotal = unitVal * qty;
+        // Customs qty: use customsQty field if set, else fall back to printCount
+        const qtyText    = tmpl.customsQty || String(Math.max(1, Math.floor(tmpl.printCount || 1)));
+        const qtyNum     = parseFloat(qtyText);
+        const isNumericQty = !isNaN(qtyNum) && String(qtyNum) === qtyText.trim();
+        const declaredVal  = parseFloat(tmpl.valueUsd) || 0;
+        // Count-based: show unit price + total = qty × unit price
+        // Weight/other: declared value IS the total for this item
+        const unitVal  = isNumericQty ? declaredVal : 0;
+        const rowTotal = isNumericQty ? qtyNum * declaredVal : declaredVal;
         grandTotal += rowTotal;
 
         if (idx % 2 === 1) {
@@ -730,9 +753,9 @@
           String(idx + 1),
           tmpl.name || '—',
           tmpl.countryOfOrigin || '—',
-          String(qty),
-          unitVal > 0 ? '$' + unitVal.toFixed(2) : '—',
-          rowTotal > 0 ? '$' + rowTotal.toFixed(2) : '—',
+          qtyText,
+          isNumericQty && declaredVal > 0 ? '$' + unitVal.toFixed(2) : '—',
+          declaredVal > 0 ? '$' + rowTotal.toFixed(2) : '—',
           descText,
         ];
 
@@ -787,19 +810,6 @@
         doc.text('• ' + line, ML, cy);
         cy += 5;
       });
-      cy += 8;
-
-      // Signature line
-      doc.setFont('helvetica', 'normal');
-      doc.setFontSize(8.5);
-      doc.setTextColor(30, 30, 30);
-      doc.text('Signature:', ML, cy);
-      doc.setLineWidth(0.3);
-      doc.setDrawColor(80, 80, 80);
-      doc.line(ML + 23, cy + 1, ML + 105, cy + 1);
-      doc.text('Date:', ML + 115, cy);
-      doc.line(ML + 128, cy + 1, ML + CW, cy + 1);
-
       doc.save('customs-packing-list.pdf');
     }
 
@@ -834,6 +844,13 @@
       // Customs modal
       const customsModal = document.getElementById('customs-modal');
       document.getElementById('customs-btn').addEventListener('click', () => {
+        const missing = state.templates.filter(t => !t.valueUsd || t.valueUsd <= 0).map(t => t.name);
+        if (missing.length > 0) {
+          const proceed = window.confirm(
+            `These items are missing a declared value:\n\n  • ${missing.join('\n  • ')}\n\nThey will show $0.00 on the customs list. Continue anyway?`
+          );
+          if (!proceed) return;
+        }
         document.getElementById('cm-date').value = new Date().toISOString().split('T')[0];
         customsModal.classList.remove('hidden');
       });
