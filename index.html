@@ -61,6 +61,11 @@
         <option value="letter">Letter</option>
         <option value="a4">A4</option>
       </select>
+      <button id="customs-btn"
+        class="bg-slate-600 hover:bg-slate-500 disabled:bg-slate-700 disabled:opacity-50 disabled:cursor-not-allowed text-white text-xs font-semibold px-3 py-1.5 rounded transition-colors whitespace-nowrap"
+        disabled>
+        📋 Customs
+      </button>
       <button id="install-btn" hidden
         class="bg-slate-600 hover:bg-slate-500 text-white text-xs font-semibold px-3 py-1.5 rounded transition-colors whitespace-nowrap">
         ↓ Install
@@ -134,10 +139,19 @@
             </div>
           </div>
 
-          <div class="w-32">
-            <label class="block text-xs font-semibold text-gray-600 mb-1">Print Count</label>
-            <input type="number" id="f-count" min="1" step="1" value="1"
-              class="w-full border border-gray-300 rounded px-3 py-2 text-sm focus:outline-none focus:border-blue-400 disabled:bg-gray-50 disabled:text-gray-400" disabled>
+          <div class="grid grid-cols-2 gap-3">
+            <div>
+              <label class="block text-xs font-semibold text-gray-600 mb-1">Print Count</label>
+              <input type="number" id="f-count" min="1" step="1" value="1"
+                class="w-full border border-gray-300 rounded px-3 py-2 text-sm focus:outline-none focus:border-blue-400 disabled:bg-gray-50 disabled:text-gray-400" disabled>
+            </div>
+            <div>
+              <label class="block text-xs font-semibold text-gray-600 mb-1">
+                Value (USD) <span class="text-gray-400 font-normal">per unit</span>
+              </label>
+              <input type="number" id="f-value" min="0" step="0.01" placeholder="0.00"
+                class="w-full border border-gray-300 rounded px-3 py-2 text-sm focus:outline-none focus:border-blue-400 disabled:bg-gray-50 disabled:text-gray-400" disabled>
+            </div>
           </div>
 
           <div class="flex justify-end pt-1 pb-6 md:pb-1">
@@ -182,6 +196,44 @@
       <span class="text-xs font-semibold">Preview</span>
     </button>
   </nav>
+
+  <!-- Customs modal -->
+  <div id="customs-modal" class="hidden fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50 p-4">
+    <div class="bg-white rounded-xl shadow-2xl w-full max-w-md">
+      <div class="px-6 py-4 border-b border-gray-200">
+        <h3 class="text-base font-bold text-gray-800">Customs Packing List</h3>
+        <p class="text-xs text-gray-500 mt-0.5">Supporting doc for CBP Form 6059B · fill in before your flight</p>
+      </div>
+      <div class="px-6 py-4 space-y-3">
+        <div>
+          <label class="block text-xs font-semibold text-gray-600 mb-1">Full Name</label>
+          <input type="text" id="cm-name" placeholder="As it appears on passport"
+            class="w-full border border-gray-300 rounded px-3 py-2 text-sm focus:outline-none focus:border-blue-400">
+        </div>
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="block text-xs font-semibold text-gray-600 mb-1">Travel Date</label>
+            <input type="date" id="cm-date"
+              class="w-full border border-gray-300 rounded px-3 py-2 text-sm focus:outline-none focus:border-blue-400">
+          </div>
+          <div>
+            <label class="block text-xs font-semibold text-gray-600 mb-1">Flight No. <span class="text-gray-400 font-normal">(optional)</span></label>
+            <input type="text" id="cm-flight" placeholder="e.g. AA 205"
+              class="w-full border border-gray-300 rounded px-3 py-2 text-sm focus:outline-none focus:border-blue-400">
+          </div>
+        </div>
+        <div>
+          <label class="block text-xs font-semibold text-gray-600 mb-1">Port of Entry <span class="text-gray-400 font-normal">(optional)</span></label>
+          <input type="text" id="cm-port" placeholder="e.g. JFK, LAX, ORD"
+            class="w-full border border-gray-300 rounded px-3 py-2 text-sm focus:outline-none focus:border-blue-400">
+        </div>
+      </div>
+      <div class="px-6 py-4 border-t border-gray-100 flex gap-3 justify-end">
+        <button id="cm-cancel" class="text-sm text-gray-600 hover:text-gray-800 px-4 py-2 rounded border border-gray-300 hover:border-gray-400 transition-colors">Cancel</button>
+        <button id="cm-generate" class="bg-blue-600 hover:bg-blue-500 text-white text-sm font-semibold px-5 py-2 rounded transition-colors">Generate PDF</button>
+      </div>
+    </div>
+  </div>
 
   <script>
     // ── State ────────────────────────────────────────────────────────────────
@@ -249,6 +301,7 @@
         countryOfOrigin: 'Nepal',
         netWeight: '',
         printCount: 1,
+        valueUsd: 0,
       };
       state.templates.push(tmpl);
       saveTemplates();
@@ -288,7 +341,7 @@
     }
 
     // ── Form Helpers ─────────────────────────────────────────────────────────
-    const FIELDS = ['f-name','f-description','f-ingredients','f-process','f-country','f-weight','f-count'];
+    const FIELDS = ['f-name','f-description','f-ingredients','f-process','f-country','f-weight','f-count','f-value'];
 
     function getFormValues() {
       return {
@@ -299,6 +352,7 @@
         countryOfOrigin: document.getElementById('f-country').value,
         netWeight:       document.getElementById('f-weight').value,
         printCount:      Math.max(1, Math.floor(Number(document.getElementById('f-count').value) || 1)),
+        valueUsd:        Math.max(0, parseFloat(document.getElementById('f-value').value) || 0),
       };
     }
 
@@ -314,6 +368,7 @@
 
       const hasTemplates = state.templates.length > 0;
       document.getElementById('generate-pdf-btn').disabled = !hasTemplates;
+      document.getElementById('customs-btn').disabled = !hasTemplates;
 
       if (!hasTemplates) {
         const empty = document.createElement('li');
@@ -377,6 +432,7 @@
       document.getElementById('f-country').value      = tmpl.countryOfOrigin;
       document.getElementById('f-weight').value       = tmpl.netWeight;
       document.getElementById('f-count').value        = tmpl.printCount;
+      document.getElementById('f-value').value        = tmpl.valueUsd || '';
     }
 
     // ── Render: Preview ──────────────────────────────────────────────────────
@@ -569,6 +625,184 @@
       doc.save('labels.pdf');
     }
 
+    // ── Customs PDF ──────────────────────────────────────────────────────────
+    function generateCustomsPDF(info) {
+      const { jsPDF } = window.jspdf;
+      const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'letter' });
+
+      const ML = 15, MT = 15, PW = 215.9;
+      const CW = PW - ML * 2;
+      let cy = MT;
+
+      // Title
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(15);
+      doc.setTextColor(20, 20, 20);
+      doc.text('CUSTOMS SUPPLEMENTARY PACKING LIST', PW / 2, cy, { align: 'center' });
+      cy += 6;
+
+      doc.setFont('helvetica', 'italic');
+      doc.setFontSize(8);
+      doc.setTextColor(110, 110, 110);
+      doc.text('Supporting document for CBP Form 6059B  ·  All items for personal use, not for commercial resale', PW / 2, cy, { align: 'center' });
+      cy += 10;
+
+      // Traveler info box
+      doc.setDrawColor(180, 180, 180);
+      doc.setLineWidth(0.4);
+      doc.rect(ML, cy, CW, 24);
+
+      const infoRows = [
+        [{ label: 'Traveler Name:', value: info.name, w: CW * 0.55 },
+         { label: 'Date of Arrival:', value: info.date, w: CW * 0.45 }],
+        [{ label: 'Flight No.:', value: info.flight || '—', w: CW * 0.55 },
+         { label: 'Port of Entry:', value: info.port || '—', w: CW * 0.45 }],
+      ];
+
+      let iy = cy + 7;
+      infoRows.forEach(row => {
+        let ix = ML + 4;
+        row.forEach(cell => {
+          doc.setFont('helvetica', 'bold');
+          doc.setFontSize(7.5);
+          doc.setTextColor(100, 100, 100);
+          doc.text(cell.label, ix, iy);
+          doc.setFont('helvetica', 'normal');
+          doc.setTextColor(20, 20, 20);
+          doc.text(cell.value || '________________________', ix + 30, iy);
+          ix += cell.w;
+        });
+        iy += 9;
+      });
+      cy += 30;
+
+      // Table columns
+      const cols = [
+        { label: '#',          w: 8,               align: 'center' },
+        { label: 'Product',    w: 50,              align: 'left'   },
+        { label: 'Origin',     w: 22,              align: 'left'   },
+        { label: 'Qty',        w: 11,              align: 'center' },
+        { label: 'Unit $',     w: 22,              align: 'right'  },
+        { label: 'Total $',    w: 22,              align: 'right'  },
+        { label: 'Description / Ingredients', w: CW - 135, align: 'left' },
+      ];
+
+      const HDR_H = 8, ROW_H = 9;
+
+      // Header row
+      doc.setFillColor(30, 41, 59);
+      doc.rect(ML, cy, CW, HDR_H, 'F');
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(7.5);
+      doc.setTextColor(255, 255, 255);
+
+      let cx = ML;
+      cols.forEach(col => {
+        const tx = col.align === 'center' ? cx + col.w / 2 :
+                   col.align === 'right'  ? cx + col.w - 2 : cx + 2;
+        doc.text(col.label, tx, cy + 5.5, { align: col.align });
+        cx += col.w;
+      });
+      cy += HDR_H;
+
+      // Data rows
+      let grandTotal = 0;
+      state.templates.forEach((tmpl, idx) => {
+        const qty      = Math.max(1, Math.floor(tmpl.printCount || 1));
+        const unitVal  = parseFloat(tmpl.valueUsd) || 0;
+        const rowTotal = unitVal * qty;
+        grandTotal += rowTotal;
+
+        if (idx % 2 === 1) {
+          doc.setFillColor(248, 250, 252);
+          doc.rect(ML, cy, CW, ROW_H, 'F');
+        }
+        doc.setDrawColor(220, 220, 220);
+        doc.setLineWidth(0.2);
+        doc.rect(ML, cy, CW, ROW_H);
+
+        doc.setFont('helvetica', 'normal');
+        doc.setFontSize(7.5);
+        doc.setTextColor(25, 25, 25);
+
+        const descText = [tmpl.description, tmpl.ingredients].filter(Boolean).join(' · ') || '—';
+        const cells = [
+          String(idx + 1),
+          tmpl.name || '—',
+          tmpl.countryOfOrigin || '—',
+          String(qty),
+          unitVal > 0 ? '$' + unitVal.toFixed(2) : '—',
+          rowTotal > 0 ? '$' + rowTotal.toFixed(2) : '—',
+          descText,
+        ];
+
+        cx = ML;
+        cols.forEach((col, ci) => {
+          const tx = col.align === 'center' ? cx + col.w / 2 :
+                     col.align === 'right'  ? cx + col.w - 2 : cx + 2;
+          const text = doc.splitTextToSize(cells[ci], col.w - 3)[0];
+          doc.text(text, tx, cy + 6, { align: col.align });
+          // vertical rule
+          doc.setDrawColor(220, 220, 220);
+          doc.line(cx + col.w, cy, cx + col.w, cy + ROW_H);
+          cx += col.w;
+        });
+        cy += ROW_H;
+      });
+
+      // Total row
+      doc.setFillColor(226, 232, 240);
+      doc.rect(ML, cy, CW, ROW_H, 'F');
+      doc.setDrawColor(100, 100, 100);
+      doc.setLineWidth(0.4);
+      doc.rect(ML, cy, CW, ROW_H);
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(8);
+      doc.setTextColor(20, 20, 20);
+      doc.text('TOTAL DECLARED VALUE', ML + CW - cols[6].w - cols[5].w - 2, cy + 6, { align: 'right' });
+      doc.text('$' + grandTotal.toFixed(2), ML + CW - 2, cy + 6, { align: 'right' });
+      cy += ROW_H + 7;
+
+      // Exemption note
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(7.5);
+      const remaining = 800 - grandTotal;
+      if (remaining >= 0) {
+        doc.setTextColor(22, 101, 52); // green
+        doc.text(`Total $${grandTotal.toFixed(2)} USD is within the $800 personal duty-free exemption ($${remaining.toFixed(2)} remaining).`, ML, cy);
+      } else {
+        doc.setTextColor(185, 28, 28); // red
+        doc.text(`Total $${grandTotal.toFixed(2)} USD exceeds the $800 personal exemption by $${Math.abs(remaining).toFixed(2)} — duties may apply.`, ML, cy);
+      }
+      cy += 9;
+
+      // Disclaimer bullets
+      doc.setTextColor(60, 60, 60);
+      doc.setFontSize(7.5);
+      [
+        'All items listed are for personal use only and are not intended for commercial resale.',
+        'I certify the information above is true and accurate to the best of my knowledge.',
+        'Food, agricultural, and other restricted items have been declared to CBP as required.',
+      ].forEach(line => {
+        doc.text('• ' + line, ML, cy);
+        cy += 5;
+      });
+      cy += 8;
+
+      // Signature line
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(8.5);
+      doc.setTextColor(30, 30, 30);
+      doc.text('Signature:', ML, cy);
+      doc.setLineWidth(0.3);
+      doc.setDrawColor(80, 80, 80);
+      doc.line(ML + 23, cy + 1, ML + 105, cy + 1);
+      doc.text('Date:', ML + 115, cy);
+      doc.line(ML + 128, cy + 1, ML + CW, cy + 1);
+
+      doc.save('customs-packing-list.pdf');
+    }
+
     // ── Handlers ─────────────────────────────────────────────────────────────
     function handleSave() {
       if (!state.selectedId) return;
@@ -596,6 +830,29 @@
       document.getElementById('new-btn').addEventListener('click', createTemplate);
       document.getElementById('save-btn').addEventListener('click', handleSave);
       document.getElementById('generate-pdf-btn').addEventListener('click', generatePDF);
+
+      // Customs modal
+      const customsModal = document.getElementById('customs-modal');
+      document.getElementById('customs-btn').addEventListener('click', () => {
+        document.getElementById('cm-date').value = new Date().toISOString().split('T')[0];
+        customsModal.classList.remove('hidden');
+      });
+      document.getElementById('cm-cancel').addEventListener('click', () => {
+        customsModal.classList.add('hidden');
+      });
+      customsModal.addEventListener('click', e => {
+        if (e.target === customsModal) customsModal.classList.add('hidden');
+      });
+      document.getElementById('cm-generate').addEventListener('click', () => {
+        const info = {
+          name:   document.getElementById('cm-name').value.trim(),
+          date:   document.getElementById('cm-date').value,
+          flight: document.getElementById('cm-flight').value.trim(),
+          port:   document.getElementById('cm-port').value.trim(),
+        };
+        customsModal.classList.add('hidden');
+        generateCustomsPDF(info);
+      });
 
       document.getElementById('paper-size').addEventListener('change', function () {
         state.paperSize = this.value;
