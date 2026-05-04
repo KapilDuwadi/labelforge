@@ -1,0 +1,19 @@
+{
+  "name": "LabelForge",
+  "short_name": "LabelForge",
+  "description": "Design product labels and generate print-ready PDFs",
+  "start_url": "/labelforge/",
+  "scope": "/labelforge/",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#1e293b",
+  "theme_color": "#1e293b",
+  "icons": [
+    {
+      "src": "icons/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}

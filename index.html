@@ -4,6 +4,12 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>LabelForge</title>
+  <link rel="manifest" href="manifest.json">
+  <meta name="theme-color" content="#1e293b">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="LabelForge">
+  <link rel="apple-touch-icon" href="icons/icon.svg">
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
   <style>
@@ -55,6 +61,10 @@
         <option value="letter">Letter</option>
         <option value="a4">A4</option>
       </select>
+      <button id="install-btn" hidden
+        class="bg-slate-600 hover:bg-slate-500 text-white text-xs font-semibold px-3 py-1.5 rounded transition-colors whitespace-nowrap">
+        ↓ Install
+      </button>
       <button id="generate-pdf-btn"
         class="bg-green-600 hover:bg-green-500 disabled:bg-slate-600 disabled:opacity-60 disabled:cursor-not-allowed text-white text-xs font-semibold px-3 py-1.5 rounded transition-colors whitespace-nowrap"
         disabled>
@@ -612,6 +622,37 @@
         btn.addEventListener('click', () => setActiveTab(btn.dataset.tab));
       });
     }
+
+    // ── PWA: Service Worker ──────────────────────────────────────────────────
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('/labelforge/sw.js', { scope: '/labelforge/' })
+          .catch(err => console.warn('SW registration failed:', err));
+      });
+    }
+
+    // ── PWA: Install prompt ──────────────────────────────────────────────────
+    let deferredInstallPrompt = null;
+    const installBtn = document.getElementById('install-btn');
+
+    window.addEventListener('beforeinstallprompt', e => {
+      e.preventDefault();
+      deferredInstallPrompt = e;
+      installBtn.hidden = false;
+    });
+
+    installBtn.addEventListener('click', async () => {
+      if (!deferredInstallPrompt) return;
+      deferredInstallPrompt.prompt();
+      const { outcome } = await deferredInstallPrompt.userChoice;
+      if (outcome === 'accepted') installBtn.hidden = true;
+      deferredInstallPrompt = null;
+    });
+
+    window.addEventListener('appinstalled', () => {
+      installBtn.hidden = true;
+      deferredInstallPrompt = null;
+    });
 
     // ── Init ─────────────────────────────────────────────────────────────────
     document.addEventListener('DOMContentLoaded', () => {
