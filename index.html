@@ -573,7 +573,7 @@
     /* Sticker wrap with reg marks */
     .sticker-wrap {
       position: relative;
-      width: 420px; height: 280px;
+      width: 420px; height: 327px;
       filter:
         drop-shadow(0 1px 0 oklch(0% 0 0 / .04))
         drop-shadow(0 8px 20px oklch(0% 0 0 / .14))
@@ -620,7 +620,7 @@
       overflow: hidden;
     }
     .stk-name { font-size: 17px; font-weight: 700; letter-spacing: -.01em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-    .stk-desc { font-size: 11px; line-height: 1.4; color: #555; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+    .stk-desc { font-size: 11px; line-height: 1.4; color: #555; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
     .stk-hr { border: 0; border-top: 1px solid #ddd; margin: 4px 0 2px; }
     .stk-fl { font-size: 9.5px; font-weight: 700; color: #222; margin-top: 3px; }
     .stk-fv { font-size: 10.5px; line-height: 1.35; color: #333; display: -webkit-box; -webkit-box-orient: vertical; overflow: hidden; }
@@ -734,7 +734,7 @@
       .sticker-wrap {
         width: min(420px, calc(100vw - 80px));
         height: auto;
-        aspect-ratio: 3 / 2;
+        aspect-ratio: 9 / 7;
       }
       .stage-inner { padding: 40px 20px; }
 
@@ -1081,7 +1081,7 @@
             <div class="reg-mark bl"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.2"><circle cx="12" cy="12" r="6"/><path d="M12 0v24M0 12h24" stroke-width=".8"/></svg></div>
             <div class="reg-mark br"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.2"><circle cx="12" cy="12" r="6"/><path d="M12 0v24M0 12h24" stroke-width=".8"/></svg></div>
             <span class="dim-h">90.0 mm</span>
-            <span class="dim-v">60.0 mm</span>
+            <span class="dim-v">70.0 mm</span>
             <div class="sticker" id="sticker-content"></div>
           </div>
           <div id="sheet-wrap" style="display:none;position:relative"></div>
@@ -1592,7 +1592,7 @@
           border:1px dashed oklch(0% 0 0/.25);padding:${4*scale}px;overflow:hidden;
           font-family:var(--font-label);display:flex;flex-direction:column;gap:1px">
           <div style="font-size:${11*scale}px;font-weight:700;color:#111;line-height:1.1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${tmpl.name || 'Product'}</div>
-          <div style="font-size:${5*scale}px;color:#555;line-height:1.2;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden">${tmpl.description || ''}</div>
+          <div style="font-size:${5*scale}px;color:#555;line-height:1.2;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden">${tmpl.description || ''}</div>
           <div style="flex:1"></div>
           <div style="border-top:1px solid #ddd;padding-top:${2*scale}px;display:flex;justify-content:space-between;font-size:${5*scale}px;color:#333">
             <b>${tmpl.netWeight || '—'}</b><span>${tmpl.countryOfOrigin || ''}</span>
@@ -1649,7 +1649,7 @@
 
     if (tmpl.description?.trim()) {
       doc.setFont('helvetica','normal'); doc.setFontSize(7.5); doc.setTextColor(90,90,90);
-      const lines = doc.splitTextToSize(tmpl.description, CW).slice(0,2);
+      const lines = doc.splitTextToSize(tmpl.description, CW).slice(0,3);
       doc.text(lines, x+PAD, cy); cy += lines.length*3.4+1.5;
     }
 
@@ -1722,7 +1722,7 @@
     const doc = new jsPDF({ orientation:'portrait', unit:'mm', format: isLetter?'letter':'a4' });
 
     const MX = isLetter ? 12.95 : 10, MY = 15;
-    const LW = 90, LH = 60, GX = isLetter ? 9 : 10, GY = 7;
+    const LW = 90, LH = 70, GX = isLetter ? 9 : 10, GY = 7;
     const PER = 6;
 
     for (let i=0; i<queue.length; i++) {
