@@ -15,6 +15,7 @@
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
   <script src="https://unpkg.com/pdf-lib@1.17.1/dist/pdf-lib.min.js"></script>
+  <script src="cbp_pdf_data.js"></script>
   <style>
     :root {
       --paper:   #f7f5ef;
@@ -1722,12 +1723,20 @@
     const { PDFDocument, rgb, StandardFonts } = PDFLib;
 
     let pdfBytes;
-    try {
-      const resp = await fetch('./cbp_form_6059b_english_0.pdf');
-      if (!resp.ok) throw new Error('fetch failed');
-      pdfBytes = await resp.arrayBuffer();
-    } catch {
-      alert('Could not load cbp_form_6059b_english_0.pdf — make sure it is in the same folder as index.html.'); return;
+    if (typeof CBP_PDF_B64 !== 'undefined') {
+      // Embedded base64 — works on file:// and offline
+      const bin = atob(CBP_PDF_B64);
+      const arr = new Uint8Array(bin.length);
+      for (let i = 0; i < bin.length; i++) arr[i] = bin.charCodeAt(i);
+      pdfBytes = arr.buffer;
+    } else {
+      try {
+        const resp = await fetch('./cbp_form_6059b_english_0.pdf');
+        if (!resp.ok) throw new Error('fetch failed');
+        pdfBytes = await resp.arrayBuffer();
+      } catch {
+        alert('Could not load cbp_form_6059b_english_0.pdf — make sure it is in the same folder as index.html.'); return;
+      }
     }
 
     const pdfDoc = await PDFDocument.load(pdfBytes, { ignoreEncryption: true });
