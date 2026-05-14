@@ -691,12 +691,38 @@
       flex-shrink: 0;
     }
     @media (max-width: 767px) {
+      /* Shell */
+      body { overflow-x: hidden; }
       .tab-bar { display: flex; }
       .app { grid-template-rows: auto 1fr auto; }
       .statbar { display: none; }
       .main { display: block; height: 100%; overflow: hidden; }
       .sidebar, .editor, .preview { height: 100%; }
       .sidebar[hidden], .editor[hidden], .preview[hidden] { display: none; }
+
+      /* Topbar — collapse verbose elements */
+      .brand-sep,
+      .brand-meta { display: none; }
+      .tb-label { display: none; }    /* "Export PDF" text */
+      .md-show  { display: none; }    /* "Customs" text    */
+      .btn-tag  { display: none; }    /* "· N sheets"      */
+      #paper-seg button span { display: none; } /* "· 8.5×11" / "· 210×297" */
+      .topbar { padding: 0 10px; gap: 8px; }
+      .topbar-right { gap: 4px; }
+
+      /* Sticker: scale to fit viewport */
+      .sticker-wrap {
+        width: min(420px, calc(100vw - 80px));
+        height: auto;
+        aspect-ratio: 3 / 2;
+      }
+      .stage-inner { padding: 40px 20px; }
+
+      /* Form grids: stack on narrow screens */
+      .row-2, .row-2u { grid-template-columns: 1fr; }
+
+      /* Preview footer — hide verbose part */
+      .preview-foot > span { display: none; }
     }
     .tab-btn {
       flex: 1; display: flex; flex-direction: column;
@@ -755,7 +781,7 @@
       </button>
       <button class="btn primary" id="export-btn" disabled>
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12"/><path d="M7 10l5 5 5-5"/><path d="M3 21h18"/></svg>
-        Export PDF
+        <span class="tb-label">Export PDF</span>
         <span class="btn-tag" id="sheet-count">· 0 sheets</span>
       </button>
     </div>
