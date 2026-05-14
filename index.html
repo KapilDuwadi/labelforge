@@ -14,6 +14,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <script src="https://unpkg.com/pdf-lib@1.17.1/dist/pdf-lib.min.js"></script>
   <style>
     :root {
       --paper:   #f7f5ef;
@@ -1106,34 +1107,104 @@
 
   <!-- Customs modal -->
   <div class="modal-bg" id="customs-modal">
-    <div class="modal">
+    <div class="modal" style="max-width:480px">
       <div class="modal-hd">
-        <h3>Customs Packing List</h3>
-        <p>Supporting doc for CBP Form 6059B · fill in before your flight</p>
+        <h3>Fill CBP Form 6059B</h3>
+        <p>Overlays your info onto the official form · downloads filled PDF</p>
       </div>
-      <div class="modal-body">
-        <div class="row">
-          <div class="lab"><span>Full Name</span></div>
-          <div class="fld"><input type="text" id="cm-name" placeholder="As it appears on passport"></div>
+      <div class="modal-body" style="max-height:70vh;overflow-y:auto;gap:16px">
+
+        <!-- Traveler -->
+        <div style="font-family:var(--font-mono);font-size:10px;letter-spacing:.08em;color:var(--mute);text-transform:uppercase;border-bottom:1px dashed var(--line);padding-bottom:4px">Traveler</div>
+        <div class="row-2">
+          <div class="row">
+            <div class="lab"><span>Last Name <span class="req">*</span></span></div>
+            <div class="fld"><input type="text" id="cm-last" placeholder="Family name"></div>
+          </div>
+          <div class="row">
+            <div class="lab"><span>First &amp; Middle</span></div>
+            <div class="fld"><input type="text" id="cm-first" placeholder="Given name MI"></div>
+          </div>
         </div>
         <div class="row-2">
           <div class="row">
-            <div class="lab"><span>Travel Date</span></div>
+            <div class="lab"><span>Date of Birth</span><span class="hint">MM / DD / YYYY</span></div>
+            <div style="display:grid;grid-template-columns:1fr 1fr 1.4fr;gap:4px">
+              <div class="fld"><input type="text" id="cm-dob-m" placeholder="MM" maxlength="2"></div>
+              <div class="fld"><input type="text" id="cm-dob-d" placeholder="DD" maxlength="2"></div>
+              <div class="fld"><input type="text" id="cm-dob-y" placeholder="YYYY" maxlength="4"></div>
+            </div>
+          </div>
+          <div class="row">
+            <div class="lab"><span>Family traveling</span><span class="hint">not incl. you</span></div>
+            <div class="fld"><input type="number" id="cm-family" min="0" value="0" style="width:60px"></div>
+          </div>
+        </div>
+
+        <!-- US Address -->
+        <div style="font-family:var(--font-mono);font-size:10px;letter-spacing:.08em;color:var(--mute);text-transform:uppercase;border-bottom:1px dashed var(--line);padding-bottom:4px;margin-top:4px">US Address / Destination</div>
+        <div class="row">
+          <div class="lab"><span>Street Address</span></div>
+          <div class="fld"><input type="text" id="cm-street" placeholder="Street number and name"></div>
+        </div>
+        <div style="display:grid;grid-template-columns:2fr 1fr 1.2fr;gap:6px">
+          <div class="row">
+            <div class="lab"><span>City</span></div>
+            <div class="fld"><input type="text" id="cm-city" placeholder="City"></div>
+          </div>
+          <div class="row">
+            <div class="lab"><span>State</span></div>
+            <div class="fld"><input type="text" id="cm-state" placeholder="NY" maxlength="2"></div>
+          </div>
+          <div class="row">
+            <div class="lab"><span>Zip</span></div>
+            <div class="fld"><input type="text" id="cm-zip" placeholder="10001" maxlength="10"></div>
+          </div>
+        </div>
+
+        <!-- Documents -->
+        <div style="font-family:var(--font-mono);font-size:10px;letter-spacing:.08em;color:var(--mute);text-transform:uppercase;border-bottom:1px dashed var(--line);padding-bottom:4px;margin-top:4px">Travel Documents</div>
+        <div class="row-2">
+          <div class="row">
+            <div class="lab"><span>Passport Issued By</span></div>
+            <div class="fld"><input type="text" id="cm-pp-country" placeholder="e.g. Nepal"></div>
+          </div>
+          <div class="row">
+            <div class="lab"><span>Passport Number</span></div>
+            <div class="fld"><input type="text" id="cm-pp-num" placeholder="PA1234567"></div>
+          </div>
+        </div>
+        <div class="row">
+          <div class="lab"><span>Country of Residence</span></div>
+          <div class="fld"><input type="text" id="cm-residence" placeholder="e.g. Nepal"></div>
+        </div>
+        <div class="row">
+          <div class="lab"><span>Countries Visited This Trip</span></div>
+          <div class="fld"><input type="text" id="cm-visited" placeholder="e.g. Nepal, India"></div>
+        </div>
+
+        <!-- Flight -->
+        <div style="font-family:var(--font-mono);font-size:10px;letter-spacing:.08em;color:var(--mute);text-transform:uppercase;border-bottom:1px dashed var(--line);padding-bottom:4px;margin-top:4px">Flight</div>
+        <div class="row-2">
+          <div class="row">
+            <div class="lab"><span>Date of Arrival <span class="req">*</span></span></div>
             <div class="fld"><input type="date" id="cm-date"></div>
           </div>
           <div class="row">
-            <div class="lab"><span>Flight No. <span class="hint" style="text-transform:none">(optional)</span></span></div>
+            <div class="lab"><span>Airline / Flight No.</span></div>
             <div class="fld"><input type="text" id="cm-flight" placeholder="e.g. AA 205"></div>
           </div>
         </div>
         <div class="row">
-          <div class="lab"><span>Port of Entry <span class="hint" style="text-transform:none">(optional)</span></span></div>
+          <div class="lab"><span>Port of Entry</span></div>
           <div class="fld"><input type="text" id="cm-port" placeholder="e.g. JFK, LAX, ORD"></div>
         </div>
+
       </div>
       <div class="modal-foot">
         <button class="btn" id="cm-cancel">Cancel</button>
-        <button class="btn primary" id="cm-generate">Generate PDF</button>
+        <button class="btn" id="cm-packing">Packing List PDF</button>
+        <button class="btn primary" id="cm-generate">Fill CBP Form</button>
       </div>
     </div>
   </div>
@@ -1643,6 +1714,164 @@
   }
 
   // ── PDF: Customs ───────────────────────────────────────────────────────────
+  // ── CBP Form 6059B text overlay ────────────────────────────────────────────
+  async function fillCBPForm(info) {
+    if (typeof PDFLib === 'undefined') {
+      alert('PDF library not loaded yet — please wait a moment and try again.'); return;
+    }
+    const { PDFDocument, rgb, StandardFonts } = PDFLib;
+
+    let pdfBytes;
+    try {
+      const resp = await fetch('./cbp_form_6059b_english_0.pdf');
+      if (!resp.ok) throw new Error('fetch failed');
+      pdfBytes = await resp.arrayBuffer();
+    } catch {
+      alert('Could not load cbp_form_6059b_english_0.pdf — make sure it is in the same folder as index.html.'); return;
+    }
+
+    const pdfDoc = await PDFDocument.load(pdfBytes, { ignoreEncryption: true });
+    const page   = pdfDoc.getPage(0);
+    const { width, height } = page.getSize(); // ~612 × 792 for US Letter
+    const font   = await pdfDoc.embedFont(StandardFonts.Helvetica);
+    const INK    = rgb(0.05, 0.05, 0.35);   // dark navy — visible on white fields
+    const SZ     = 9;
+    const SZ_SM  = 8;
+
+    function t(text, x, y, size) {
+      if (!text && text !== 0) return;
+      page.drawText(String(text), { x, y, size: size || SZ, font, color: INK });
+    }
+    function X(x, y) { // checkbox tick
+      page.drawText('X', { x, y, size: 7.5, font, color: INK });
+    }
+
+    // ── Coordinates for CBP Form 6059B (2016 English, 612×792 pts) ──────────
+    // (0,0) = bottom-left corner. Adjust these constants if text lands off.
+    const F = {
+      // Row 1 — Name & DOB
+      lastName:      { x: 40,  y: 697 },
+      firstName:     { x: 220, y: 697 },
+      dobM:          { x: 432, y: 697 },
+      dobD:          { x: 455, y: 697 },
+      dobY:          { x: 472, y: 697 },
+      familyMembers: { x: 564, y: 697 },
+
+      // Row 2 — US Address
+      street: { x: 40, y: 671 },
+      city:   { x: 40, y: 646 },
+      state:  { x: 258, y: 646 },
+      zip:    { x: 335, y: 646 },
+
+      // Row 3 — Documents & travel
+      ppCountry:  { x: 40,  y: 621 },
+      ppNumber:   { x: 220, y: 621 },
+      residence:  { x: 40,  y: 597 },
+      visited:    { x: 40,  y: 573 },
+      flight:     { x: 40,  y: 549 },
+
+      // Checkboxes — each pair is Yes / No
+      // (A) Fruits, vegetables, plants, food, insects:
+      chkFoodYes: { x: 421, y: 522 },
+      chkFoodNo:  { x: 447, y: 522 },
+      // (B) Meats, animals, animal/wildlife products:
+      chkMeatYes: { x: 421, y: 505 },
+      chkMeatNo:  { x: 447, y: 505 },
+      // (C) Soil, cell cultures, snails, etc.:
+      chkSoilYes: { x: 421, y: 489 },
+      chkSoilNo:  { x: 447, y: 489 },
+      // (D) $10,000 or more:
+      chkMoneyYes: { x: 421, y: 473 },
+      chkMoneyNo:  { x: 447, y: 473 },
+      // (E) Commercial merchandise:
+      chkMerchYes: { x: 421, y: 457 },
+      chkMerchNo:  { x: 447, y: 457 },
+
+      // Items list area — starts here, 13 pts per line
+      itemsStart: { x: 40, y: 418 },
+      itemsLineH: 13,
+
+      // Total declared value box
+      totalValue: { x: 490, y: 185 },
+
+      // Date signed
+      dateSigned: { x: 40, y: 113 },
+    };
+
+    // ── Fill fields ──────────────────────────────────────────────────────────
+    t(info.lastName,      F.lastName.x,      F.lastName.y);
+    t(info.firstName,     F.firstName.x,     F.firstName.y);
+    t(info.dobM,          F.dobM.x,          F.dobM.y);
+    t(info.dobD,          F.dobD.x,          F.dobD.y);
+    t(info.dobY,          F.dobY.x,          F.dobY.y);
+    t(info.familyMembers, F.familyMembers.x, F.familyMembers.y);
+
+    t(info.street,    F.street.x, F.street.y);
+    t(info.city,      F.city.x,   F.city.y);
+    t(info.state,     F.state.x,  F.state.y);
+    t(info.zip,       F.zip.x,    F.zip.y);
+
+    t(info.ppCountry, F.ppCountry.x, F.ppCountry.y);
+    t(info.ppNumber,  F.ppNumber.x,  F.ppNumber.y);
+    t(info.residence, F.residence.x, F.residence.y);
+    t(info.visited,   F.visited.x,   F.visited.y);
+    t(info.flight,    F.flight.x,    F.flight.y);
+
+    // Checkboxes — food: Yes if any active template has food content
+    const active = state.templates.filter(t => t.enabled !== false);
+    const hasFood = active.some(t => t.ingredients || t.description);
+    X(hasFood ? F.chkFoodYes.x : F.chkFoodNo.x, hasFood ? F.chkFoodYes.y : F.chkFoodNo.y);
+    X(F.chkMeatNo.x,  F.chkMeatNo.y);
+    X(F.chkSoilNo.x,  F.chkSoilNo.y);
+    X(F.chkMoneyNo.x, F.chkMoneyNo.y);
+    X(F.chkMerchNo.x, F.chkMerchNo.y);
+
+    // Items list
+    let grand = 0;
+    let iy = F.itemsStart.y;
+    const lineH = F.itemsLineH;
+    const maxLines = Math.floor((F.itemsStart.y - 200) / lineH);
+    let lineCount = 0;
+
+    for (const tmpl of active) {
+      if (lineCount >= maxLines) break;
+      const qtyRaw  = tmpl.customsQty || String(Math.max(1, Math.floor(tmpl.printCount || 1)));
+      const qtyNum  = parseFloat(qtyRaw);
+      const isNum   = !isNaN(qtyNum) && String(qtyNum) === qtyRaw.trim();
+      const val     = parseFloat(tmpl.valueUsd) || 0;
+      const rowTotal = isNum ? qtyNum * val : val;
+      grand += rowTotal;
+
+      // One line per item: Name (Origin) × qty — $value  |  description
+      const descParts = [tmpl.description, tmpl.ingredients].filter(Boolean).join('; ');
+      const mainLine  = `${tmpl.name || '—'}  (${tmpl.countryOfOrigin || 'Nepal'})  ×${qtyRaw}  $${rowTotal.toFixed(2)}`;
+      t(mainLine, F.itemsStart.x, iy, SZ_SM);
+      iy -= lineH; lineCount++;
+
+      if (descParts && lineCount < maxLines) {
+        // Truncate description to ~95 chars to stay within the line width
+        const desc = descParts.length > 95 ? descParts.slice(0, 92) + '…' : descParts;
+        t('  ' + desc, F.itemsStart.x, iy, 7);
+        iy -= lineH; lineCount++;
+      }
+    }
+
+    // Total declared value
+    t('$' + grand.toFixed(2), F.totalValue.x, F.totalValue.y, 9);
+
+    // Arrival date
+    t(info.date, F.dateSigned.x, F.dateSigned.y, SZ_SM);
+
+    // Download
+    const filled = await pdfDoc.save();
+    const blob   = new Blob([filled], { type: 'application/pdf' });
+    const url    = URL.createObjectURL(blob);
+    const a      = Object.assign(document.createElement('a'), { href: url, download: 'cbp_6059b_filled.pdf' });
+    document.body.appendChild(a); a.click();
+    document.body.removeChild(a);
+    setTimeout(() => URL.revokeObjectURL(url), 3000);
+  }
+
   function generateCustomsPDF(info) {
     const { jsPDF } = window.jspdf;
     const doc = new jsPDF({ orientation:'portrait', unit:'mm', format:'letter' });
@@ -1882,15 +2111,41 @@
       if (e.target === document.getElementById('customs-modal'))
         document.getElementById('customs-modal').classList.remove('open');
     });
-    document.getElementById('cm-generate').addEventListener('click', () => {
+    document.getElementById('cm-packing').addEventListener('click', () => {
+      const last  = document.getElementById('cm-last').value.trim();
+      const first = document.getElementById('cm-first').value.trim();
       const info = {
-        name:   document.getElementById('cm-name').value.trim(),
+        name:   [first, last].filter(Boolean).join(' ') || '—',
         date:   document.getElementById('cm-date').value,
         flight: document.getElementById('cm-flight').value.trim(),
         port:   document.getElementById('cm-port').value.trim(),
       };
       document.getElementById('customs-modal').classList.remove('open');
       generateCustomsPDF(info);
+    });
+    document.getElementById('cm-generate').addEventListener('click', () => {
+      const last = document.getElementById('cm-last').value.trim();
+      if (!last) { alert('Last name is required.'); return; }
+      const info = {
+        lastName:      last,
+        firstName:     document.getElementById('cm-first').value.trim(),
+        dobM:          document.getElementById('cm-dob-m').value.trim(),
+        dobD:          document.getElementById('cm-dob-d').value.trim(),
+        dobY:          document.getElementById('cm-dob-y').value.trim(),
+        familyMembers: document.getElementById('cm-family').value,
+        street:        document.getElementById('cm-street').value.trim(),
+        city:          document.getElementById('cm-city').value.trim(),
+        state:         document.getElementById('cm-state').value.trim(),
+        zip:           document.getElementById('cm-zip').value.trim(),
+        ppCountry:     document.getElementById('cm-pp-country').value.trim(),
+        ppNumber:      document.getElementById('cm-pp-num').value.trim(),
+        residence:     document.getElementById('cm-residence').value.trim(),
+        visited:       document.getElementById('cm-visited').value.trim(),
+        flight:        document.getElementById('cm-flight').value.trim(),
+        date:          document.getElementById('cm-date').value,
+      };
+      document.getElementById('customs-modal').classList.remove('open');
+      fillCBPForm(info);
     });
 
     // Mobile tabs
