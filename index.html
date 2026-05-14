@@ -1748,146 +1748,95 @@
       }
     }
 
-    const pdfDoc = await PDFDocument.load(pdfBytes, { ignoreEncryption: true });
-    const page   = pdfDoc.getPage(0);
-    const { width, height } = page.getSize(); // ~612 × 792 for US Letter
-    const font   = await pdfDoc.embedFont(StandardFonts.Helvetica);
-    const INK    = rgb(0.05, 0.05, 0.35);   // dark navy — visible on white fields
-    const SZ     = 9;
-    const SZ_SM  = 8;
+    // ── Split items into pages of 9 ──────────────────────────────────────────
+    const active = state.templates.filter(t => t.enabled !== false);
+    const chunks = [];
+    for (let i = 0; i < Math.max(active.length, 1); i += 9) chunks.push(active.slice(i, i + 9));
+    const totalSheets = chunks.length;
 
-    function t(text, x, y, size) {
-      if (!text && text !== 0) return;
-      page.drawText(String(text), { x, y, size: size || SZ, font, color: INK });
-    }
-    function X(x, y) { // checkbox tick
-      page.drawText('X', { x, y, size: 7.5, font, color: INK });
-    }
+    // Helper: fill one sheet, return saved bytes.
+    const fillSheet = async (chunk, sheetIndex) => {
+      const doc  = await PDFDocument.load(pdfBytes, { ignoreEncryption: true });
+      const fnt  = await doc.embedFont(StandardFonts.Helvetica);
+      const frm  = doc.getForm();
 
-    // ── Coordinates for CBP Form 6059B (2016 English, 612×792 pts) ──────────
-    // (0,0) = bottom-left corner. Adjust these constants if text lands off.
-    const F = {
-      // Row 1 — Name & DOB
-      lastName:      { x: 40,  y: 697 },
-      firstName:     { x: 220, y: 697 },
-      dobM:          { x: 432, y: 697 },
-      dobD:          { x: 455, y: 697 },
-      dobY:          { x: 472, y: 697 },
-      familyMembers: { x: 564, y: 697 },
+      const stf = (name, value) => {
+        if (!value && value !== 0) return;
+        try { const f = frm.getTextField(name); f.setText(String(value)); f.updateAppearances(fnt); } catch {}
+      };
+      const schk = (base, yes) => {
+        try { frm.getCheckBox(`form1[0].#subform[0].${base}[${yes ? 1 : 0}]`).check(); } catch {}
+      };
+      const SD = (n, v) => stf(`form1[0].#subform[0].Desscrip1[${n}]`, v);
 
-      // Row 2 — US Address
-      street: { x: 40, y: 671 },
-      city:   { x: 40, y: 646 },
-      state:  { x: 258, y: 646 },
-      zip:    { x: 335, y: 646 },
+      // Personal info — identical on every sheet
+      SD(1, info.lastName);
+      SD(2, info.firstName);
+      SD(12, info.familyMembers);
 
-      // Row 3 — Documents & travel
-      ppCountry:  { x: 40,  y: 621 },
-      ppNumber:   { x: 220, y: 621 },
-      residence:  { x: 40,  y: 597 },
-      visited:    { x: 40,  y: 573 },
-      flight:     { x: 40,  y: 549 },
+      const pad2 = s => String(s || '').padStart(2, '0');
+      const dm = pad2(info.dobM), dd = pad2(info.dobD);
+      const dy = String(info.dobY || '').slice(-2).padStart(2, '0');
+      SD(13, dm[0]); SD(19, dm[1]);
+      SD(16, dd[0]); SD(17, dd[1]);
+      SD(15, dy[0]); SD(14, dy[1]);
 
-      // Checkboxes — each pair is Yes / No
-      // (A) Fruits, vegetables, plants, food, insects:
-      chkFoodYes: { x: 421, y: 522 },
-      chkFoodNo:  { x: 447, y: 522 },
-      // (B) Meats, animals, animal/wildlife products:
-      chkMeatYes: { x: 421, y: 505 },
-      chkMeatNo:  { x: 447, y: 505 },
-      // (C) Soil, cell cultures, snails, etc.:
-      chkSoilYes: { x: 421, y: 489 },
-      chkSoilNo:  { x: 447, y: 489 },
-      // (D) $10,000 or more:
-      chkMoneyYes: { x: 421, y: 473 },
-      chkMoneyNo:  { x: 447, y: 473 },
-      // (E) Commercial merchandise:
-      chkMerchYes: { x: 421, y: 457 },
-      chkMerchNo:  { x: 447, y: 457 },
+      SD(10, info.street);
+      SD(9,  info.city);
+      SD(11, info.state);
+      SD(8,  info.zip);
+      SD(7,  info.ppCountry);
+      SD(6,  info.ppNumber);
+      SD(5,  info.residence);
+      SD(4,  info.visited);
+      SD(3,  info.flight);
 
-      // Items list area — starts here, 13 pts per line
-      itemsStart: { x: 40, y: 418 },
-      itemsLineH: 13,
+      // Checkboxes — same on every sheet
+      const hasFood = active.some(t => t.ingredients || t.description);
+      schk('chbxyesno10',  false);
+      schk('chbxyesno11A', hasFood);
+      schk('chbxyesno11B', false);
+      schk('chbxyesno11C', false);
+      schk('chbxyesno11D', false);
+      schk('chbxyesno12',  false);
+      schk('chbxyesno13',  false);
+      schk('chbxyesno14',  false);
 
-      // Total declared value box
-      totalValue: { x: 490, y: 185 },
+      // Items for this chunk (up to 9 rows)
+      let sheetTotal = 0;
+      chunk.forEach((tmpl, i) => {
+        const row    = i + 1;
+        const qtyRaw = tmpl.customsQty || String(Math.max(1, Math.floor(tmpl.printCount || 1)));
+        const qtyNum = parseFloat(qtyRaw);
+        const isNum  = !isNaN(qtyNum) && String(qtyNum) === qtyRaw.trim();
+        const val    = parseFloat(tmpl.valueUsd) || 0;
+        const total  = isNum ? qtyNum * val : val;
+        sheetTotal  += total;
 
-      // Date signed
-      dateSigned: { x: 40, y: 113 },
+        const label  = row === 1 ? 'Desscrip1' : `Desscrip${row}`;
+        const origin = tmpl.countryOfOrigin || 'Nepal';
+        stf(`form1[0].#subform[0].${label}[0]`, `${tmpl.name || '—'} (${origin}) ×${qtyRaw}`);
+        stf(`form1[0].#subform[0].Value${row}[0]`, total.toFixed(2));
+      });
+
+      stf('form1[0].#subform[0].Total[0]',      sheetTotal.toFixed(2));
+      stf('form1[0].#subform[0].Signature1[0]', info.name || `${info.firstName || ''} ${info.lastName || ''}`.trim());
+      stf('form1[0].#subform[0].SigDate[0]',    info.date);
+
+      return doc.save();
     };
 
-    // ── Fill fields ──────────────────────────────────────────────────────────
-    t(info.lastName,      F.lastName.x,      F.lastName.y);
-    t(info.firstName,     F.firstName.x,     F.firstName.y);
-    t(info.dobM,          F.dobM.x,          F.dobM.y);
-    t(info.dobD,          F.dobD.x,          F.dobD.y);
-    t(info.dobY,          F.dobY.x,          F.dobY.y);
-    t(info.familyMembers, F.familyMembers.x, F.familyMembers.y);
-
-    t(info.street,    F.street.x, F.street.y);
-    t(info.city,      F.city.x,   F.city.y);
-    t(info.state,     F.state.x,  F.state.y);
-    t(info.zip,       F.zip.x,    F.zip.y);
-
-    t(info.ppCountry, F.ppCountry.x, F.ppCountry.y);
-    t(info.ppNumber,  F.ppNumber.x,  F.ppNumber.y);
-    t(info.residence, F.residence.x, F.residence.y);
-    t(info.visited,   F.visited.x,   F.visited.y);
-    t(info.flight,    F.flight.x,    F.flight.y);
-
-    // Checkboxes — food: Yes if any active template has food content
-    const active = state.templates.filter(t => t.enabled !== false);
-    const hasFood = active.some(t => t.ingredients || t.description);
-    X(hasFood ? F.chkFoodYes.x : F.chkFoodNo.x, hasFood ? F.chkFoodYes.y : F.chkFoodNo.y);
-    X(F.chkMeatNo.x,  F.chkMeatNo.y);
-    X(F.chkSoilNo.x,  F.chkSoilNo.y);
-    X(F.chkMoneyNo.x, F.chkMoneyNo.y);
-    X(F.chkMerchNo.x, F.chkMerchNo.y);
-
-    // Items list
-    let grand = 0;
-    let iy = F.itemsStart.y;
-    const lineH = F.itemsLineH;
-    const maxLines = Math.floor((F.itemsStart.y - 200) / lineH);
-    let lineCount = 0;
-
-    for (const tmpl of active) {
-      if (lineCount >= maxLines) break;
-      const qtyRaw  = tmpl.customsQty || String(Math.max(1, Math.floor(tmpl.printCount || 1)));
-      const qtyNum  = parseFloat(qtyRaw);
-      const isNum   = !isNaN(qtyNum) && String(qtyNum) === qtyRaw.trim();
-      const val     = parseFloat(tmpl.valueUsd) || 0;
-      const rowTotal = isNum ? qtyNum * val : val;
-      grand += rowTotal;
-
-      // One line per item: Name (Origin) × qty — $value  |  description
-      const descParts = [tmpl.description, tmpl.ingredients].filter(Boolean).join('; ');
-      const mainLine  = `${tmpl.name || '—'}  (${tmpl.countryOfOrigin || 'Nepal'})  ×${qtyRaw}  $${rowTotal.toFixed(2)}`;
-      t(mainLine, F.itemsStart.x, iy, SZ_SM);
-      iy -= lineH; lineCount++;
-
-      if (descParts && lineCount < maxLines) {
-        // Truncate description to ~95 chars to stay within the line width
-        const desc = descParts.length > 95 ? descParts.slice(0, 92) + '…' : descParts;
-        t('  ' + desc, F.itemsStart.x, iy, 7);
-        iy -= lineH; lineCount++;
-      }
+    // Download all sheets
+    for (let i = 0; i < totalSheets; i++) {
+      const bytes    = await fillSheet(chunks[i], i);
+      const filename = totalSheets > 1 ? `cbp_6059b_${i + 1}of${totalSheets}.pdf` : 'cbp_6059b_filled.pdf';
+      const blob     = new Blob([bytes], { type: 'application/pdf' });
+      const url      = URL.createObjectURL(blob);
+      const a        = Object.assign(document.createElement('a'), { href: url, download: filename });
+      document.body.appendChild(a); a.click();
+      document.body.removeChild(a);
+      setTimeout(() => URL.revokeObjectURL(url), 5000);
     }
-
-    // Total declared value
-    t('$' + grand.toFixed(2), F.totalValue.x, F.totalValue.y, 9);
-
-    // Arrival date
-    t(info.date, F.dateSigned.x, F.dateSigned.y, SZ_SM);
-
-    // Download
-    const filled = await pdfDoc.save();
-    const blob   = new Blob([filled], { type: 'application/pdf' });
-    const url    = URL.createObjectURL(blob);
-    const a      = Object.assign(document.createElement('a'), { href: url, download: 'cbp_6059b_filled.pdf' });
-    document.body.appendChild(a); a.click();
-    document.body.removeChild(a);
-    setTimeout(() => URL.revokeObjectURL(url), 3000);
   }
 
   function generateCustomsPDF(info) {
