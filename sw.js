@@ -1,5 +1,5 @@
-const APP_CACHE = 'labelforge-app-v5';
-const CDN_CACHE = 'labelforge-cdn-v5';
+const APP_CACHE = 'labelforge-app-v6';
+const CDN_CACHE = 'labelforge-cdn-v6';
 
 const APP_SHELL = [
   '/labelforge/',
