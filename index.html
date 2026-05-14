@@ -5,1041 +5,1926 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>LabelForge</title>
   <link rel="manifest" href="manifest.json">
-  <meta name="theme-color" content="#1e293b">
+  <meta name="theme-color" content="#1a1a17">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="apple-mobile-web-app-title" content="LabelForge">
   <link rel="apple-touch-icon" href="icons/icon.svg">
-  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
   <style>
-    ::-webkit-scrollbar { width: 5px; }
-    ::-webkit-scrollbar-track { background: #f1f5f9; }
-    ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 3px; }
-
-    /* On desktop (md+), always show all panels regardless of mobile hidden state */
-    @media (min-width: 768px) {
-      .mobile-panel { display: flex !important; }
+    :root {
+      --paper:   #f7f5ef;
+      --paper-2: #efece2;
+      --surface: #ffffff;
+      --surface-2: #fbfaf6;
+      --ink:   #1a1a17;
+      --ink-2: #3a3935;
+      --mute:   #76746e;
+      --mute-2: #a8a59e;
+      --line:   #e3dfd3;
+      --line-2: #d4cfc0;
+      --line-dk: #b8b3a3;
+      --reg:      oklch(55% 0.17 25);
+      --reg-soft: oklch(55% 0.17 25 / .08);
+      --cyan: oklch(60% 0.12 220);
+      --mag:  oklch(55% 0.17 0);
+      --yel:  oklch(85% 0.16 95);
+      --blk:  #1a1a17;
+      --radius: 4px;
+      --font-ui:    "Inter", -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+      --font-mono:  "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+      --font-label: Helvetica, "Helvetica Neue", Arial, sans-serif;
     }
-
-    #preview-label {
-      width: min(340px, 100%);
-      min-height: 226px;
-      border: 1.5px dashed #555;
-      font-family: Helvetica, Arial, sans-serif;
-      padding: 10px 12px 48px 12px;
-      box-sizing: border-box;
-      background: white;
-      position: relative;
-      display: flex;
-      flex-direction: column;
-      gap: 3px;
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body { height: 100%; }
+    body {
+      font-family: var(--font-ui);
+      font-size: 13px;
+      line-height: 1.45;
+      color: var(--ink);
+      background: var(--paper);
+      -webkit-font-smoothing: antialiased;
     }
-    .pv-name  { font-size: 13px; font-weight: bold; color: #111; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-    .pv-desc  { font-size: 9px; color: #555; line-height: 1.35; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
-    .pv-hr    { border: none; border-top: 1px solid #ddd; margin: 2px 0; }
-    .pv-fl    { font-size: 7.5px; font-weight: bold; color: #333; margin-top: 2px; }
-    .pv-fv    { font-size: 8px; color: #444; line-height: 1.3; display: -webkit-box; -webkit-box-orient: vertical; overflow: hidden; }
-    .pv-bot   { position: absolute; bottom: 0; left: 0; right: 0; display: flex; border-top: 1px solid #ddd; padding: 5px 12px 8px; gap: 8px; background: white; }
-    .pv-bhalf { flex: 1; }
-    .pv-bl    { font-size: 6.5px; font-weight: bold; color: #888; text-transform: uppercase; letter-spacing: 0.03em; }
-    .pv-bv    { font-size: 9px; font-weight: 600; color: #111; }
+    button { font: inherit; cursor: pointer; border: none; background: none; }
+    input, textarea, select { font: inherit; color: inherit; }
+
+    /* ── Scrollbars ─────────────────────────────────────────────────────── */
+    ::-webkit-scrollbar { width: 6px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: var(--line-2); border-radius: 3px; }
 
     @media print { body { display: none !important; } }
+
+    /* ── App shell ──────────────────────────────────────────────────────── */
+    .app {
+      display: grid;
+      grid-template-rows: auto auto 1fr;
+      height: 100dvh;
+      overflow: hidden;
+    }
+
+    /* ── Topbar ─────────────────────────────────────────────────────────── */
+    .topbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 0 16px;
+      height: 46px;
+      background: var(--surface);
+      border-bottom: 1px solid var(--line);
+      flex-shrink: 0;
+    }
+    .brand { display: flex; align-items: center; gap: 10px; min-width: 0; }
+    .brand-mark {
+      width: 20px; height: 20px; flex: none;
+      color: var(--ink); display: grid; place-items: center;
+    }
+    .brand-mark svg { width: 100%; height: 100%; display: block; }
+    .brand-wm {
+      font-family: var(--font-mono);
+      font-weight: 600;
+      font-size: 12px;
+      letter-spacing: .06em;
+      color: var(--ink);
+      white-space: nowrap;
+    }
+    .brand-wm sup { font-size: 8px; color: var(--mute); margin-left: 1px; vertical-align: 4px; }
+    .brand-sep { width: 1px; height: 16px; background: var(--line); flex-shrink: 0; }
+    .brand-meta {
+      display: flex; align-items: center; gap: 12px;
+      font-family: var(--font-mono);
+      font-size: 10px;
+      color: var(--mute);
+      letter-spacing: .03em;
+      white-space: nowrap;
+      overflow: hidden;
+    }
+    .brand-meta .dot {
+      width: 6px; height: 6px; border-radius: 50%;
+      background: oklch(65% 0.15 145);
+      box-shadow: 0 0 0 2px oklch(65% 0.15 145 / .18);
+      flex-shrink: 0;
+    }
+    .topbar-right { display: flex; align-items: center; gap: 6px; flex-shrink: 0; }
+
+    /* ── Buttons ─────────────────────────────────────────────────────────── */
+    .btn {
+      display: inline-flex; align-items: center; gap: 6px;
+      height: 28px; padding: 0 10px;
+      border-radius: var(--radius);
+      border: 1px solid var(--line-2);
+      background: var(--surface);
+      color: var(--ink);
+      font-size: 12px; font-weight: 500;
+      transition: background .12s, border-color .12s;
+      white-space: nowrap;
+    }
+    .btn:hover { background: var(--surface-2); border-color: var(--line-dk); }
+    .btn svg { width: 13px; height: 13px; flex-shrink: 0; }
+    .btn.primary { background: var(--ink); color: var(--surface); border-color: var(--ink); }
+    .btn.primary:hover { background: #000; border-color: #000; }
+    .btn.danger-ghost { color: var(--reg); border-color: transparent; background: transparent; }
+    .btn.danger-ghost:hover { background: var(--reg-soft); }
+    .btn-tag {
+      font-family: var(--font-mono);
+      font-size: 10px;
+      color: var(--mute);
+      letter-spacing: .02em;
+    }
+    .btn.primary .btn-tag { color: rgba(255,255,255,.5); }
+
+    /* Segmented */
+    .seg {
+      display: inline-flex;
+      border: 1px solid var(--line-2);
+      background: var(--surface);
+      border-radius: var(--radius);
+      overflow: hidden;
+      height: 28px;
+      font-family: var(--font-mono);
+      font-size: 10px;
+      letter-spacing: .04em;
+    }
+    .seg button {
+      padding: 0 9px;
+      color: var(--mute);
+      display: inline-flex; align-items: center; gap: 5px;
+      border: none;
+      background: transparent;
+    }
+    .seg button + button { border-left: 1px solid var(--line); }
+    .seg button[aria-pressed="true"] { background: var(--ink); color: var(--surface); }
+    .seg button:not([aria-pressed="true"]):hover { color: var(--ink); background: var(--surface-2); }
+    .seg svg { width: 12px; height: 12px; }
+
+    /* ── Statbar ─────────────────────────────────────────────────────────── */
+    .statbar {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 0 16px;
+      height: 30px;
+      background: var(--paper-2);
+      border-bottom: 1px solid var(--line);
+      font-family: var(--font-mono);
+      font-size: 10px;
+      color: var(--mute);
+      letter-spacing: .04em;
+      overflow: hidden;
+      white-space: nowrap;
+      flex-shrink: 0;
+    }
+    .statbar-l, .statbar-r { display: flex; align-items: center; gap: 14px; }
+    .statbar .k { color: var(--mute-2); }
+    .statbar .v { color: var(--ink-2); }
+    .statbar .pip { width: 8px; height: 8px; display: inline-block; border-radius: 1px; }
+    .cmyk { display: inline-flex; gap: 2px; align-items: center; }
+
+    /* ── Main grid ───────────────────────────────────────────────────────── */
+    .main {
+      display: grid;
+      grid-template-columns: 240px 1fr 360px;
+      min-height: 0;
+      overflow: hidden;
+    }
+    @media (max-width: 767px) {
+      .main { grid-template-columns: 1fr; }
+      .statbar { display: none; }
+    }
+
+    /* ── Sidebar ─────────────────────────────────────────────────────────── */
+    .sidebar {
+      display: flex; flex-direction: column;
+      background: var(--surface);
+      border-right: 1px solid var(--line);
+      min-height: 0;
+    }
+    .sidebar-hd {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 10px 14px 6px;
+      flex-shrink: 0;
+    }
+    .sidebar-hd .ttl {
+      font-family: var(--font-mono);
+      font-size: 10px;
+      letter-spacing: .1em;
+      color: var(--mute);
+      text-transform: uppercase;
+    }
+    .sidebar-hd .ttl b { color: var(--ink); margin-left: 6px; font-weight: 600; }
+    .sb-search {
+      margin: 0 10px 6px;
+      display: flex; align-items: center; gap: 5px;
+      padding: 5px 8px;
+      background: var(--paper);
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      color: var(--mute);
+    }
+    .sb-search svg { width: 12px; height: 12px; flex-shrink: 0; }
+    .sb-search input {
+      flex: 1; min-width: 0;
+      border: 0; outline: 0; background: transparent;
+      font-size: 11.5px; color: var(--ink);
+    }
+    .sb-search input::placeholder { color: var(--mute-2); }
+    .sb-tabs {
+      display: flex;
+      margin: 0 10px;
+      padding-bottom: 2px;
+      border-bottom: 1px dashed var(--line);
+      font-family: var(--font-mono);
+      font-size: 10px;
+      letter-spacing: .07em;
+      text-transform: uppercase;
+      flex-shrink: 0;
+    }
+    .sb-tabs button {
+      padding: 4px 7px;
+      color: var(--mute);
+      border-bottom: 1.5px solid transparent;
+      margin-bottom: -1px;
+    }
+    .sb-tabs button[aria-pressed="true"] { color: var(--ink); border-color: var(--ink); }
+    .sb-tabs .cnt { margin-left: 4px; color: var(--mute-2); }
+    .sb-list {
+      flex: 1; min-height: 0; overflow-y: auto;
+      padding: 4px 6px 8px;
+      display: flex; flex-direction: column;
+      gap: 1px;
+    }
+    .sb-item {
+      display: grid;
+      grid-template-columns: 14px 52px 1fr auto auto;
+      align-items: center;
+      gap: 6px;
+      padding: 7px 6px;
+      border-radius: 3px;
+      border: 1px solid transparent;
+      cursor: default;
+      position: relative;
+    }
+    .sb-item:hover { background: var(--paper); }
+    .sb-item[aria-selected="true"] { background: var(--paper-2); border-color: var(--line-2); }
+    .sb-item[aria-selected="true"]::before {
+      content: ""; position: absolute;
+      left: -1px; top: 6px; bottom: 6px; width: 2px;
+      background: var(--reg); border-radius: 1px;
+    }
+    .chk {
+      width: 14px; height: 14px;
+      border: 1.5px solid var(--line-dk);
+      border-radius: 2px;
+      display: grid; place-items: center;
+      background: var(--surface);
+      color: transparent;
+      flex-shrink: 0;
+    }
+    .chk[data-on="true"] { background: var(--ink); border-color: var(--ink); color: var(--surface); }
+    .chk svg { width: 10px; height: 10px; }
+    .sb-code {
+      font-family: var(--font-mono);
+      font-size: 10px;
+      color: var(--mute);
+    }
+    .sb-item[aria-selected="true"] .sb-code { color: var(--ink); }
+    .sb-name {
+      font-size: 12px; font-weight: 500;
+      color: var(--ink);
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    }
+    .sb-item[data-disabled="true"] .sb-name { text-decoration: line-through; color: var(--mute); }
+    .sb-mult {
+      font-family: var(--font-mono); font-size: 10px; color: var(--mute);
+      padding: 1px 4px;
+      background: var(--paper); border: 1px solid var(--line); border-radius: 3px;
+      white-space: nowrap;
+    }
+    .sb-del {
+      width: 18px; height: 18px;
+      display: grid; place-items: center;
+      color: var(--mute); border-radius: 3px;
+      opacity: 0;
+    }
+    .sb-item:hover .sb-del { opacity: 1; }
+    .sb-del:hover { color: var(--reg); background: var(--reg-soft); }
+    .sb-del svg { width: 12px; height: 12px; }
+    .sb-empty {
+      padding: 32px 12px;
+      color: var(--mute);
+      font-size: 11.5px;
+      text-align: center;
+    }
+    .sb-foot {
+      border-top: 1px solid var(--line);
+      padding: 10px 12px;
+      display: flex; flex-direction: column; gap: 8px;
+      flex-shrink: 0;
+    }
+    .sb-stats {
+      display: grid; grid-template-columns: 1fr 1fr; gap: 3px 10px;
+      font-family: var(--font-mono); font-size: 10px;
+      color: var(--mute); letter-spacing: .03em;
+    }
+    .sb-stats b { color: var(--ink); font-weight: 600; }
+
+    /* ── Editor ──────────────────────────────────────────────────────────── */
+    .editor {
+      display: flex; flex-direction: column;
+      min-height: 0;
+      background: var(--paper);
+    }
+    .ed-crumb {
+      padding: 0 16px;
+      height: 42px;
+      border-bottom: 1px solid var(--line);
+      display: flex; align-items: center; justify-content: space-between;
+      gap: 10px;
+      background: var(--paper);
+      flex-shrink: 0;
+    }
+    .ed-crumb-l {
+      display: flex; align-items: center; gap: 8px;
+      font-family: var(--font-mono);
+      font-size: 10.5px;
+      color: var(--mute);
+      letter-spacing: .03em;
+      min-width: 0;
+      overflow: hidden;
+    }
+    .ed-crumb-l .sep { color: var(--line-dk); }
+    .ed-crumb-l .nm {
+      color: var(--ink);
+      font-family: var(--font-ui);
+      font-weight: 600;
+      font-size: 13px;
+      letter-spacing: 0;
+      overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+    }
+    .ed-crumb-r { display: flex; align-items: center; gap: 6px; flex-shrink: 0; }
+    .ed-scroll {
+      flex: 1; min-height: 0; overflow-y: auto;
+      padding: 16px;
+    }
+    .form {
+      max-width: 600px;
+      margin: 0 auto;
+      display: flex; flex-direction: column; gap: 18px;
+      padding-bottom: 80px;
+    }
+    .sect {
+      background: var(--surface);
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      overflow: hidden;
+    }
+    .sect-hd {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 9px 14px;
+      border-bottom: 1px solid var(--line);
+      background: linear-gradient(180deg, var(--surface) 0%, var(--surface-2) 100%);
+    }
+    .sect-hd .l {
+      display: flex; align-items: baseline; gap: 8px;
+      font-family: var(--font-mono);
+      font-size: 10.5px;
+      color: var(--mute);
+      letter-spacing: .08em;
+      text-transform: uppercase;
+    }
+    .sect-hd .l b { color: var(--ink); font-weight: 600; letter-spacing: .04em; }
+    .sect-hd .nu { color: var(--reg); font-weight: 600; }
+    .sect-hd .r { font-family: var(--font-mono); font-size: 10px; color: var(--mute-2); }
+    .sect-body { padding: 14px; display: flex; flex-direction: column; gap: 11px; }
+
+    .row { display: flex; flex-direction: column; gap: 4px; }
+    .row-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+    .row-2u { display: grid; grid-template-columns: 2fr 1fr; gap: 10px; }
+
+    .lab {
+      display: flex; align-items: baseline; justify-content: space-between;
+      font-family: var(--font-mono);
+      font-size: 10px;
+      letter-spacing: .04em;
+      color: var(--mute);
+      text-transform: uppercase;
+    }
+    .lab .req { color: var(--reg); margin-left: 3px; }
+    .lab .hint { text-transform: none; letter-spacing: 0; color: var(--mute-2); font-size: 10px; }
+    .fld {
+      display: flex; align-items: stretch;
+      border: 1px solid var(--line-2);
+      border-radius: var(--radius);
+      background: var(--surface);
+      transition: border-color .12s, box-shadow .12s;
+    }
+    .fld:focus-within { border-color: var(--ink); box-shadow: 0 0 0 3px oklch(0% 0 0 / .06); }
+    .fld > input, .fld > textarea {
+      flex: 1; min-width: 0;
+      border: 0; outline: 0; background: transparent;
+      padding: 7px 10px;
+      font-size: 12.5px; line-height: 1.4;
+      color: var(--ink);
+    }
+    .fld > input:disabled, .fld > textarea:disabled { opacity: .4; cursor: not-allowed; }
+    .fld > textarea { resize: vertical; min-height: 52px; padding: 8px 10px; }
+    .fld > input::placeholder, .fld > textarea::placeholder { color: var(--mute-2); }
+    .fld .prefix, .fld .suffix {
+      display: inline-flex; align-items: center;
+      padding: 0 9px;
+      color: var(--mute);
+      font-family: var(--font-mono);
+      font-size: 10.5px;
+      background: var(--paper);
+    }
+    .fld .prefix { border-right: 1px solid var(--line); }
+    .fld .suffix { border-left: 1px solid var(--line); }
+
+    .stepper {
+      display: inline-flex; align-items: stretch;
+      border: 1px solid var(--line-2);
+      border-radius: var(--radius);
+      background: var(--surface);
+      overflow: hidden;
+      width: max-content;
+    }
+    .stepper button {
+      width: 28px; background: var(--paper);
+      color: var(--mute); font-size: 16px; line-height: 1;
+      display: grid; place-items: center;
+    }
+    .stepper button:hover { color: var(--ink); }
+    .stepper input {
+      width: 44px; text-align: center;
+      border: 0; outline: 0; background: transparent;
+      font-family: var(--font-mono); font-size: 13px;
+      color: var(--ink); padding: 7px 0;
+      border-left: 1px solid var(--line);
+      border-right: 1px solid var(--line);
+    }
+
+    .declar {
+      border: 1px dashed var(--line-dk);
+      border-radius: 6px;
+      background:
+        repeating-linear-gradient(135deg, transparent 0 18px, oklch(95% 0.04 90 / .15) 18px 19px),
+        oklch(96% 0.02 85);
+      padding: 14px;
+      position: relative;
+      margin-top: 4px;
+    }
+    .declar::before {
+      content: "FOR · CUSTOMS · USE";
+      position: absolute;
+      top: -8px; left: 14px;
+      background: var(--surface);
+      padding: 0 8px;
+      font-family: var(--font-mono);
+      font-size: 9px;
+      letter-spacing: .14em;
+      color: var(--reg);
+      font-weight: 600;
+    }
+    .declar-note {
+      margin-top: 10px;
+      font-size: 11px; color: var(--mute); line-height: 1.5;
+    }
+    .declar-note code { font-family: var(--font-mono); font-size: 10.5px; }
+
+    .ed-foot {
+      position: sticky; bottom: 0;
+      background: linear-gradient(to bottom, transparent 0%, var(--paper) 30%);
+      padding: 16px 16px 10px;
+      display: flex; justify-content: flex-end; gap: 8px;
+      pointer-events: none;
+    }
+    .ed-foot button { pointer-events: all; }
+
+    /* ── Preview pane ────────────────────────────────────────────────────── */
+    .preview {
+      display: flex; flex-direction: column;
+      border-left: 1px solid var(--line);
+      background: var(--paper-2);
+      min-height: 0;
+    }
+    .preview-hd {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 0 14px;
+      height: 42px;
+      border-bottom: 1px solid var(--line);
+      background: var(--surface);
+      gap: 8px;
+      flex-shrink: 0;
+    }
+    .preview-hd .l {
+      display: flex; align-items: center; gap: 10px;
+      font-family: var(--font-mono);
+      font-size: 10.5px; color: var(--mute); letter-spacing: .04em;
+    }
+    .preview-hd .l b { color: var(--ink); font-weight: 600; }
+
+    .preview-stage {
+      flex: 1; min-height: 0;
+      position: relative; overflow: hidden;
+      background-color: var(--paper-2);
+      background-image:
+        linear-gradient(to right,  oklch(0% 0 0 / .04) 1px, transparent 1px),
+        linear-gradient(to bottom, oklch(0% 0 0 / .04) 1px, transparent 1px),
+        linear-gradient(to right,  oklch(0% 0 0 / .08) 1px, transparent 1px),
+        linear-gradient(to bottom, oklch(0% 0 0 / .08) 1px, transparent 1px);
+      background-size: 10px 10px, 10px 10px, 50px 50px, 50px 50px;
+      display: grid; place-items: center;
+    }
+    .preview-empty {
+      font-family: var(--font-mono); font-size: 11px;
+      color: var(--mute); letter-spacing: .04em;
+      text-align: center;
+    }
+
+    /* Ruler */
+    .ruler-h {
+      position: absolute; top: 0; left: 20px; right: 0; height: 20px;
+      background: var(--surface); border-bottom: 1px solid var(--line);
+      pointer-events: none;
+    }
+    .ruler-v {
+      position: absolute; top: 0; left: 0; bottom: 0; width: 20px;
+      background: var(--surface); border-right: 1px solid var(--line);
+      pointer-events: none;
+    }
+    .ruler-corner {
+      position: absolute; top: 0; left: 0; width: 20px; height: 20px;
+      background: var(--surface);
+      border-right: 1px solid var(--line);
+      border-bottom: 1px solid var(--line);
+      z-index: 2; pointer-events: none;
+    }
+    .stage-inner {
+      position: absolute; inset: 20px 0 0 20px;
+      display: grid; place-items: center;
+      padding: 36px;
+      overflow: hidden;
+    }
+    .stage-inner.no-ruler { inset: 0; }
+
+    /* Sticker wrap with reg marks */
+    .sticker-wrap {
+      position: relative;
+      width: 420px; height: 280px;
+      filter:
+        drop-shadow(0 1px 0 oklch(0% 0 0 / .04))
+        drop-shadow(0 8px 20px oklch(0% 0 0 / .14))
+        drop-shadow(0 24px 40px oklch(0% 0 0 / .07));
+    }
+    .reg-mark {
+      position: absolute; width: 18px; height: 18px;
+      color: var(--reg); pointer-events: none;
+    }
+    .reg-mark svg { width: 100%; height: 100%; display: block; }
+    .reg-mark.tl { top: -28px; left: -28px; }
+    .reg-mark.tr { top: -28px; right: -28px; }
+    .reg-mark.bl { bottom: -28px; left: -28px; }
+    .reg-mark.br { bottom: -28px; right: -28px; }
+    .dim-h {
+      position: absolute; top: -16px; left: 0; right: 0;
+      display: flex; align-items: center; gap: 6px;
+      font-family: var(--font-mono); font-size: 10px;
+      color: var(--mute); pointer-events: none;
+      justify-content: center;
+    }
+    .dim-h::before, .dim-h::after { content: ""; flex: 1; border-top: 1px solid var(--line-dk); max-width: 35%; }
+    .dim-v {
+      position: absolute; left: -16px; top: 0; bottom: 0;
+      writing-mode: vertical-rl; transform: rotate(180deg);
+      display: flex; align-items: center; gap: 6px;
+      font-family: var(--font-mono); font-size: 10px;
+      color: var(--mute); pointer-events: none;
+      justify-content: center;
+    }
+    .dim-v::before, .dim-v::after { content: ""; flex: 1; border-top: 1px solid var(--line-dk); max-width: 35%; }
+
+    /* Sticker itself */
+    .sticker {
+      width: 100%; height: 100%;
+      background: #fff;
+      border: 1px dashed oklch(0% 0 0 / .32);
+      padding: 14px 16px 52px;
+      font-family: var(--font-label);
+      color: #111;
+      position: relative;
+      display: flex; flex-direction: column;
+      gap: 3px;
+      overflow: hidden;
+    }
+    .stk-name { font-size: 17px; font-weight: 700; letter-spacing: -.01em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .stk-desc { font-size: 11px; line-height: 1.4; color: #555; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+    .stk-hr { border: 0; border-top: 1px solid #ddd; margin: 4px 0 2px; }
+    .stk-fl { font-size: 9.5px; font-weight: 700; color: #222; margin-top: 3px; }
+    .stk-fv { font-size: 10.5px; line-height: 1.35; color: #333; display: -webkit-box; -webkit-box-orient: vertical; overflow: hidden; }
+    .stk-bot {
+      position: absolute; left: 0; right: 0; bottom: 0;
+      border-top: 1px solid #ddd;
+      padding: 7px 16px 9px;
+      display: grid; grid-template-columns: 1fr 1fr; gap: 6px 12px;
+      background: #fff;
+    }
+    .stk-bot .blab { font-size: 7.5px; font-weight: 700; color: #999; letter-spacing: .08em; text-transform: uppercase; }
+    .stk-bot .bval { font-size: 10px; font-weight: 600; color: #111; }
+    .stk-bot .bdates {
+      grid-column: 1 / -1;
+      display: grid; grid-template-columns: 1fr 1fr; gap: 6px 12px;
+      padding-top: 5px;
+      border-top: 1px solid #f0f0f0;
+    }
+
+    /* Preview footer */
+    .preview-foot {
+      padding: 0 14px;
+      height: 34px;
+      background: var(--surface);
+      border-top: 1px solid var(--line);
+      display: flex; align-items: center; justify-content: space-between;
+      font-family: var(--font-mono); font-size: 10px;
+      color: var(--mute); letter-spacing: .03em;
+      flex-shrink: 0;
+    }
+    .calbar { display: flex; gap: 2px; }
+    .calbar i { display: inline-block; width: 13px; height: 9px; }
+
+    /* ── Customs modal ───────────────────────────────────────────────────── */
+    .modal-bg {
+      display: none;
+      position: fixed; inset: 0;
+      background: oklch(0% 0 0 / .55);
+      z-index: 50;
+      place-items: center;
+      padding: 16px;
+    }
+    .modal-bg.open { display: grid; }
+    .modal {
+      background: var(--surface);
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      width: 100%; max-width: 420px;
+      box-shadow: 0 24px 60px oklch(0% 0 0 / .18);
+    }
+    .modal-hd {
+      padding: 16px 20px 14px;
+      border-bottom: 1px solid var(--line);
+    }
+    .modal-hd h3 { font-size: 14px; font-weight: 600; color: var(--ink); }
+    .modal-hd p { font-size: 11.5px; color: var(--mute); margin-top: 2px; }
+    .modal-body { padding: 16px 20px; display: flex; flex-direction: column; gap: 12px; }
+    .modal-foot {
+      padding: 12px 20px;
+      border-top: 1px solid var(--line);
+      display: flex; gap: 8px; justify-content: flex-end;
+    }
+
+    /* ── Mobile tab bar ──────────────────────────────────────────────────── */
+    .tab-bar {
+      display: none;
+      background: var(--surface);
+      border-top: 1px solid var(--line);
+      flex-shrink: 0;
+    }
+    @media (max-width: 767px) {
+      .tab-bar { display: flex; }
+      .app { grid-template-rows: auto 1fr auto; }
+      .statbar { display: none; }
+      .main { display: block; height: 100%; overflow: hidden; }
+      .sidebar, .editor, .preview { height: 100%; }
+      .sidebar[hidden], .editor[hidden], .preview[hidden] { display: none; }
+    }
+    .tab-btn {
+      flex: 1; display: flex; flex-direction: column;
+      align-items: center; justify-content: center;
+      gap: 3px; padding: 8px 4px;
+      color: var(--mute);
+      font-family: var(--font-mono);
+      font-size: 9px; letter-spacing: .06em; text-transform: uppercase;
+      border-top: 2px solid transparent;
+    }
+    .tab-btn svg { width: 18px; height: 18px; }
+    .tab-btn.active { color: var(--ink); border-top-color: var(--reg); }
+
+    /* ── Install button ──────────────────────────────────────────────────── */
+    #install-btn { display: none; }
+    #install-btn.visible { display: inline-flex; }
   </style>
 </head>
-<body class="h-[100dvh] flex flex-col bg-gray-100 text-gray-800">
+<body>
+<div class="app" id="app">
 
-  <!-- Header -->
-  <header class="bg-slate-800 text-white px-4 py-2.5 flex items-center justify-between shadow-md shrink-0 gap-3">
-    <div class="min-w-0">
-      <h1 class="text-base font-bold tracking-tight leading-tight">LabelForge</h1>
-      <p class="text-slate-400 text-xs mt-0.5 hidden sm:block">Design labels · generate print-ready PDFs</p>
+  <!-- Topbar -->
+  <header class="topbar">
+    <div class="brand">
+      <div class="brand-mark" aria-hidden="true">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4">
+          <rect x="3" y="3" width="18" height="18" rx="1.5"/>
+          <circle cx="12" cy="12" r="4"/>
+          <path d="M12 1v22M1 12h22" stroke-width=".7" opacity=".5"/>
+        </svg>
+      </div>
+      <div class="brand-wm">LABELFORGE<sup>™</sup></div>
+      <div class="brand-sep"></div>
+      <div class="brand-meta">
+        <span class="dot"></span>
+        <span id="autosave-label" style="display:none">AUTOSAVED</span>
+        <span class="hidden sm-show">WORKSPACE / SARITA EXPORTS</span>
+      </div>
     </div>
-    <div class="flex items-center gap-2 shrink-0">
-      <select id="paper-size" class="bg-slate-700 text-white text-xs rounded px-2 py-1.5 border border-slate-600 focus:outline-none focus:border-blue-400">
-        <option value="letter">Letter</option>
-        <option value="a4">A4</option>
-      </select>
-      <button id="customs-btn"
-        class="bg-slate-600 hover:bg-slate-500 disabled:bg-slate-700 disabled:opacity-50 disabled:cursor-not-allowed text-white text-xs font-semibold px-3 py-1.5 rounded transition-colors whitespace-nowrap"
-        disabled>
-        📋 Customs
+    <div class="topbar-right">
+      <div class="seg" id="paper-seg" role="group" aria-label="Paper size">
+        <button data-val="letter" aria-pressed="true">
+          US LETTER <span style="opacity:.6">· 8.5×11</span>
+        </button>
+        <button data-val="a4" aria-pressed="false">
+          A4 <span style="opacity:.6">· 210×297</span>
+        </button>
+      </div>
+      <button class="btn" id="customs-btn" disabled>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M5 21h14"/><path d="M7 17h10v-2a3 3 0 0 0-3-3h-1a3 3 0 0 1-3-3v-1a2 2 0 1 1 4 0"/></svg>
+        <span class="md-show">Customs</span>
       </button>
-      <button id="install-btn" hidden
-        class="bg-slate-600 hover:bg-slate-500 text-white text-xs font-semibold px-3 py-1.5 rounded transition-colors whitespace-nowrap">
-        ↓ Install
+      <button class="btn" id="install-btn">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12"/><path d="M7 10l5 5 5-5"/><path d="M3 21h18"/></svg>
+        Install
       </button>
-      <button id="generate-pdf-btn"
-        class="bg-green-600 hover:bg-green-500 disabled:bg-slate-600 disabled:opacity-60 disabled:cursor-not-allowed text-white text-xs font-semibold px-3 py-1.5 rounded transition-colors whitespace-nowrap"
-        disabled>
-        ↓ PDF
+      <button class="btn primary" id="export-btn" disabled>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12"/><path d="M7 10l5 5 5-5"/><path d="M3 21h18"/></svg>
+        Export PDF
+        <span class="btn-tag" id="sheet-count">· 0 sheets</span>
       </button>
     </div>
   </header>
 
+  <!-- Statbar -->
+  <div class="statbar">
+    <div class="statbar-l">
+      <span><span class="k">PAGE</span> <span class="v" id="sb-page">LETTER · 215.9 × 279.4 mm</span></span>
+      <span><span class="k">LABEL</span> <span class="v">90 × 60 mm</span></span>
+      <span><span class="k">GRID</span> <span class="v">2 × 3</span></span>
+      <span><span class="k">BLEED</span> <span class="v">0.0 mm</span></span>
+    </div>
+    <div class="statbar-r">
+      <span><span class="k">TEMPLATES</span> <span class="v" id="sb-templates">0 / 0</span></span>
+      <span><span class="k">QUEUE</span> <span class="v" id="sb-queue">0 labels</span></span>
+      <span><span class="k">OUTPUT</span> <span class="v" id="sb-output">0 sheets</span></span>
+      <span><span class="k">CMYK</span>
+        <span class="cmyk">
+          <span class="pip" style="background:var(--cyan)"></span>
+          <span class="pip" style="background:var(--mag)"></span>
+          <span class="pip" style="background:var(--yel)"></span>
+          <span class="pip" style="background:var(--blk)"></span>
+        </span>
+      </span>
+    </div>
+  </div>
+
   <!-- Main -->
-  <main class="flex flex-1 min-h-0 overflow-hidden">
+  <div class="main">
 
     <!-- Sidebar -->
-    <aside id="sidebar-panel"
-      class="mobile-panel flex-col w-full md:w-52 bg-white border-r border-gray-200 shrink-0">
-      <div class="p-3 border-b border-gray-200">
-        <button id="new-btn"
-          class="w-full bg-blue-600 hover:bg-blue-500 text-white text-sm font-semibold py-2.5 px-3 rounded transition-colors">
-          + New Label
+    <aside class="sidebar" id="sidebar-panel">
+      <div class="sidebar-hd">
+        <div class="ttl">Templates <b id="sb-count">00</b></div>
+      </div>
+      <div class="sb-search">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></svg>
+        <input id="sb-search-input" placeholder="Search templates…" type="search">
+      </div>
+      <div class="sb-tabs" role="tablist">
+        <button role="tab" data-filter="all"    aria-pressed="true">All <span class="cnt" id="tab-cnt-all">0</span></button>
+        <button role="tab" data-filter="active" aria-pressed="false">Active <span class="cnt" id="tab-cnt-active">0</span></button>
+        <button role="tab" data-filter="hidden" aria-pressed="false">Hidden <span class="cnt" id="tab-cnt-hidden">0</span></button>
+      </div>
+      <ul class="sb-list" id="sidebar-list"></ul>
+      <div class="sb-foot">
+        <div class="sb-stats">
+          <span>Queue</span><b id="sf-queue">0 labels</b>
+          <span>Output</span><b id="sf-output">0 sheets</b>
+        </div>
+        <button class="btn primary" id="new-btn" style="width:100%;justify-content:center;gap:6px">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" style="width:13px;height:13px"><path d="M12 5v14M5 12h14"/></svg>
+          New template
         </button>
       </div>
-      <ul id="sidebar-list" class="flex-1 overflow-y-auto p-2 space-y-1"></ul>
     </aside>
 
     <!-- Editor -->
-    <section id="editor-panel"
-      class="mobile-panel hidden flex-col flex-1 overflow-y-auto p-4 md:p-6">
-      <div class="w-full max-w-lg mx-auto md:mx-0">
-        <h2 id="editor-title" class="text-base font-semibold text-gray-600 mb-4">Select or create a label to begin</h2>
-        <form id="editor-form" class="space-y-4">
+    <section class="editor" id="editor-panel" hidden>
+      <div class="ed-crumb">
+        <div class="ed-crumb-l">
+          <span>Templates</span>
+          <span class="sep">/</span>
+          <span id="crumb-code" style="font-family:var(--font-mono);font-size:10.5px"></span>
+          <span class="sep" id="crumb-sep" style="display:none">·</span>
+          <span class="nm" id="crumb-name"></span>
+        </div>
+        <div class="ed-crumb-r">
+          <button class="btn danger-ghost" id="delete-btn">Delete</button>
+        </div>
+      </div>
 
-          <div>
-            <label class="block text-xs font-semibold text-gray-600 mb-1">
-              Product Name <span class="text-red-500">*</span>
-            </label>
-            <input type="text" id="f-name" placeholder="e.g. Himalayan Wild Honey"
-              class="w-full border border-gray-300 rounded px-3 py-2 text-sm focus:outline-none focus:border-blue-400 disabled:bg-gray-50 disabled:text-gray-400" disabled>
-          </div>
+      <div class="ed-scroll">
+        <div class="form" id="editor-form">
 
-          <div>
-            <label class="block text-xs font-semibold text-gray-600 mb-1">Description</label>
-            <textarea id="f-description" rows="2" placeholder="Short description of the product"
-              class="w-full border border-gray-300 rounded px-3 py-2 text-sm focus:outline-none focus:border-blue-400 disabled:bg-gray-50 disabled:text-gray-400 resize-none" disabled></textarea>
-          </div>
-
-          <div>
-            <label class="block text-xs font-semibold text-gray-600 mb-1">Ingredients</label>
-            <textarea id="f-ingredients" rows="3" placeholder="List all ingredients"
-              class="w-full border border-gray-300 rounded px-3 py-2 text-sm focus:outline-none focus:border-blue-400 disabled:bg-gray-50 disabled:text-gray-400 resize-none" disabled></textarea>
-          </div>
-
-          <div>
-            <label class="block text-xs font-semibold text-gray-600 mb-1">Process</label>
-            <textarea id="f-process" rows="2" placeholder="How it's made (e.g. Cold extracted, sun dried)"
-              class="w-full border border-gray-300 rounded px-3 py-2 text-sm focus:outline-none focus:border-blue-400 disabled:bg-gray-50 disabled:text-gray-400 resize-none" disabled></textarea>
-          </div>
-
-          <div class="grid grid-cols-2 gap-3">
-            <div>
-              <label class="block text-xs font-semibold text-gray-600 mb-1">Country of Origin</label>
-              <input type="text" id="f-country" placeholder="Nepal"
-                class="w-full border border-gray-300 rounded px-3 py-2 text-sm focus:outline-none focus:border-blue-400 disabled:bg-gray-50 disabled:text-gray-400" disabled>
+          <!-- 01 Product -->
+          <div class="sect">
+            <div class="sect-hd">
+              <div class="l"><span class="nu">01</span> ─ <b>Product</b></div>
+              <div class="r">Required to export</div>
             </div>
-            <div>
-              <label class="block text-xs font-semibold text-gray-600 mb-1">Net Weight</label>
-              <input type="text" id="f-weight" placeholder="e.g. 100g / 3.5 oz"
-                class="w-full border border-gray-300 rounded px-3 py-2 text-sm focus:outline-none focus:border-blue-400 disabled:bg-gray-50 disabled:text-gray-400" disabled>
-            </div>
-          </div>
-
-          <div class="grid grid-cols-2 gap-3">
-            <div>
-              <label class="block text-xs font-semibold text-gray-600 mb-1">Manufactured Date <span class="text-gray-400 font-normal">yyyy-mm-dd</span></label>
-              <input type="date" id="f-mfd-date"
-                class="w-full border border-gray-300 rounded px-3 py-2 text-sm focus:outline-none focus:border-blue-400 disabled:bg-gray-50 disabled:text-gray-400" disabled>
-            </div>
-            <div>
-              <label class="block text-xs font-semibold text-gray-600 mb-1">Expiry Date <span class="text-gray-400 font-normal">yyyy-mm-dd</span></label>
-              <input type="date" id="f-exp-date"
-                class="w-full border border-gray-300 rounded px-3 py-2 text-sm focus:outline-none focus:border-blue-400 disabled:bg-gray-50 disabled:text-gray-400" disabled>
-            </div>
-          </div>
-
-          <div class="w-32">
-            <label class="block text-xs font-semibold text-gray-600 mb-1">Print Count</label>
-            <input type="number" id="f-count" min="1" step="1" value="1"
-              class="w-full border border-gray-300 rounded px-3 py-2 text-sm focus:outline-none focus:border-blue-400 disabled:bg-gray-50 disabled:text-gray-400" disabled>
-          </div>
-
-          <div class="bg-amber-50 border border-amber-200 rounded-lg p-3 space-y-3">
-            <p class="text-xs font-semibold text-amber-700">For Customs Declaration</p>
-            <div class="grid grid-cols-2 gap-3">
-              <div>
-                <label class="block text-xs font-semibold text-gray-600 mb-1">
-                  Quantity <span class="text-gray-400 font-normal">count or weight</span>
-                </label>
-                <input type="text" id="f-customs-qty" placeholder="e.g. 3 or 500g"
-                  class="w-full border border-gray-300 rounded px-3 py-2 text-sm focus:outline-none focus:border-blue-400 disabled:bg-gray-50 disabled:text-gray-400 bg-white" disabled>
+            <div class="sect-body">
+              <div class="row">
+                <div class="lab">
+                  <span>Product name <span class="req">*</span></span>
+                  <span class="hint" id="name-hint">0 / 60 ch</span>
+                </div>
+                <div class="fld">
+                  <input type="text" id="f-name" placeholder="e.g. Himalayan Wild Honey" maxlength="60">
+                </div>
               </div>
-              <div>
-                <label class="block text-xs font-semibold text-gray-600 mb-1">
-                  Declared Value <span class="text-gray-400 font-normal">USD total</span>
-                </label>
-                <div class="relative">
-                  <span class="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm">$</span>
-                  <input type="number" id="f-value" min="0" step="0.01" placeholder="0.00"
-                    class="w-full border border-gray-300 rounded pl-6 pr-3 py-2 text-sm focus:outline-none focus:border-blue-400 disabled:bg-gray-50 disabled:text-gray-400 bg-white" disabled>
+              <div class="row">
+                <div class="lab">
+                  <span>Description</span>
+                  <span class="hint">Shown below name · 2 lines max</span>
+                </div>
+                <div class="fld">
+                  <textarea id="f-description" rows="2" placeholder="Short description of the product"></textarea>
                 </div>
               </div>
             </div>
           </div>
 
-          <div class="flex justify-end pt-1 pb-6 md:pb-1">
-            <button type="button" id="save-btn"
-              class="bg-green-600 hover:bg-green-500 disabled:bg-gray-300 disabled:cursor-not-allowed text-white text-sm font-semibold px-5 py-2 rounded transition-colors"
-              disabled>
-              Save Changes
+          <!-- 02 Composition -->
+          <div class="sect">
+            <div class="sect-hd">
+              <div class="l"><span class="nu">02</span> ─ <b>Composition &amp; Process</b></div>
+              <div class="r">Body of label</div>
+            </div>
+            <div class="sect-body">
+              <div class="row">
+                <div class="lab">
+                  <span>Ingredients</span>
+                  <span class="hint">3 lines max on label</span>
+                </div>
+                <div class="fld">
+                  <textarea id="f-ingredients" rows="3" placeholder="List all ingredients in descending order of weight"></textarea>
+                </div>
+              </div>
+              <div class="row">
+                <div class="lab">
+                  <span>Process</span>
+                  <span class="hint">2 lines max</span>
+                </div>
+                <div class="fld">
+                  <textarea id="f-process" rows="2" placeholder="e.g. Cold extracted, gravity strained, sun-dried"></textarea>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- 03 Origin & Dating -->
+          <div class="sect">
+            <div class="sect-hd">
+              <div class="l"><span class="nu">03</span> ─ <b>Origin &amp; Dating</b></div>
+              <div class="r">Footer of label</div>
+            </div>
+            <div class="sect-body">
+              <div class="row-2">
+                <div class="row">
+                  <div class="lab"><span>Country of origin</span></div>
+                  <div class="fld">
+                    <span class="prefix">ISO</span>
+                    <input type="text" id="f-country" placeholder="Nepal">
+                  </div>
+                </div>
+                <div class="row">
+                  <div class="lab"><span>Net weight / volume</span></div>
+                  <div class="fld">
+                    <input type="text" id="f-weight" placeholder="250 g · 8.8 oz">
+                    <span class="suffix">g·oz</span>
+                  </div>
+                </div>
+              </div>
+              <div class="row-2">
+                <div class="row">
+                  <div class="lab">
+                    <span>Manufactured</span>
+                    <span class="hint">YYYY-MM-DD</span>
+                  </div>
+                  <div class="fld"><input type="date" id="f-mfd-date"></div>
+                </div>
+                <div class="row">
+                  <div class="lab">
+                    <span>Best by</span>
+                    <span class="hint">YYYY-MM-DD</span>
+                  </div>
+                  <div class="fld"><input type="date" id="f-exp-date"></div>
+                </div>
+              </div>
+              <div class="row-2u">
+                <div class="row">
+                  <div class="lab">
+                    <span>Print count</span>
+                    <span class="hint">Stickers of this design</span>
+                  </div>
+                  <div>
+                    <div class="stepper">
+                      <button type="button" id="count-dec">−</button>
+                      <input type="number" id="f-count" min="1" step="1" value="1">
+                      <button type="button" id="count-inc">+</button>
+                    </div>
+                  </div>
+                </div>
+                <div class="row">
+                  <div class="lab">
+                    <span>Lot code</span>
+                    <span class="hint">auto</span>
+                  </div>
+                  <div class="fld">
+                    <span class="prefix">LOT</span>
+                    <input type="text" id="f-lot" readonly style="color:var(--mute)">
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- 04 Customs -->
+          <div class="sect">
+            <div class="sect-hd">
+              <div class="l"><span class="nu">04</span> ─ <b>Customs Declaration</b></div>
+              <div class="r">Off-label · packing list only</div>
+            </div>
+            <div class="sect-body">
+              <div class="declar">
+                <div class="row-2">
+                  <div class="row">
+                    <div class="lab">
+                      <span>Quantity</span>
+                      <span class="hint">count or weight</span>
+                    </div>
+                    <div class="fld"><input type="text" id="f-customs-qty" placeholder='e.g. 3 or "120g"'></div>
+                  </div>
+                  <div class="row">
+                    <div class="lab">
+                      <span>Declared value</span>
+                      <span class="hint">USD total</span>
+                    </div>
+                    <div class="fld">
+                      <span class="prefix">$</span>
+                      <input type="number" id="f-value" step="0.01" min="0" placeholder="0.00">
+                      <span class="suffix">USD</span>
+                    </div>
+                  </div>
+                </div>
+                <p class="declar-note">
+                  Values feed the supplementary packing list (CBP Form 6059B). Items without a declared value print as <code>$0.00</code>.
+                </p>
+              </div>
+            </div>
+          </div>
+
+          <div class="ed-foot">
+            <button type="button" class="btn" id="discard-btn">Discard</button>
+            <button type="button" class="btn primary" id="save-btn">
+              Save changes <span class="btn-tag">⌘S</span>
             </button>
           </div>
 
-        </form>
+        </div>
       </div>
     </section>
 
     <!-- Preview -->
-    <section id="preview-panel"
-      class="mobile-panel hidden flex-col w-full md:w-80 bg-gray-50 border-l border-gray-200 shrink-0">
-      <div class="px-4 py-3 border-b border-gray-200">
-        <h3 class="text-xs font-semibold text-gray-500 uppercase tracking-wider">Label Preview</h3>
+    <section class="preview" id="preview-panel">
+      <div class="preview-hd">
+        <div class="l">
+          <b>PREVIEW</b>
+          <span id="pv-code-info" style="display:none">
+            · <span id="pv-code"></span> · 90 × 60 mm · 1:1
+          </span>
+        </div>
+        <div class="seg" id="view-seg" role="group" aria-label="View mode">
+          <button data-mode="sticker" aria-pressed="true">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg>
+            Sticker
+          </button>
+          <button data-mode="sheet" aria-pressed="false">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="3" width="16" height="18" rx="1"/><path d="M9 7h6M9 11h6M9 15h6"/></svg>
+            Sheet
+          </button>
+        </div>
       </div>
-      <div class="flex-1 overflow-y-auto flex flex-col items-center px-4 py-6 gap-4 pb-20 md:pb-6">
-        <p id="preview-empty" class="text-gray-400 text-xs italic text-center">Select a label to preview</p>
-        <div id="preview-label" class="hidden shadow-sm"></div>
-        <p class="text-gray-400 text-xs text-center hidden" id="preview-note">90 × 60 mm · dotted lines = cut guides</p>
+      <div class="preview-stage" id="preview-stage">
+        <!-- Rulers injected by JS -->
+        <div class="ruler-corner" id="ruler-corner"></div>
+        <div class="ruler-h" id="ruler-h"></div>
+        <div class="ruler-v" id="ruler-v"></div>
+        <div class="stage-inner" id="stage-inner">
+          <p class="preview-empty" id="preview-empty">Select a template to preview</p>
+          <div id="sticker-wrap" class="sticker-wrap" style="display:none">
+            <!-- reg marks -->
+            <div class="reg-mark tl"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.2"><circle cx="12" cy="12" r="6"/><path d="M12 0v24M0 12h24" stroke-width=".8"/></svg></div>
+            <div class="reg-mark tr"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.2"><circle cx="12" cy="12" r="6"/><path d="M12 0v24M0 12h24" stroke-width=".8"/></svg></div>
+            <div class="reg-mark bl"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.2"><circle cx="12" cy="12" r="6"/><path d="M12 0v24M0 12h24" stroke-width=".8"/></svg></div>
+            <div class="reg-mark br"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.2"><circle cx="12" cy="12" r="6"/><path d="M12 0v24M0 12h24" stroke-width=".8"/></svg></div>
+            <span class="dim-h">90.0 mm</span>
+            <span class="dim-v">60.0 mm</span>
+            <div class="sticker" id="sticker-content"></div>
+          </div>
+          <div id="sheet-wrap" style="display:none;position:relative"></div>
+        </div>
+      </div>
+      <div class="preview-foot">
+        <span>
+          <span style="color:var(--mute-2)">RES</span> 300 dpi
+          <span style="margin:0 8px;color:var(--line-dk)">·</span>
+          <span style="color:var(--mute-2)">PROFILE</span> sRGB
+          <span style="margin:0 8px;color:var(--line-dk)">·</span>
+          <span style="color:var(--mute-2)">BLEED</span> 0.0 mm
+        </span>
+        <div class="calbar" aria-hidden="true">
+          <i style="background:var(--cyan)"></i>
+          <i style="background:var(--mag)"></i>
+          <i style="background:var(--yel)"></i>
+          <i style="background:var(--blk)"></i>
+          <i style="background:#fff;border:1px solid var(--line)"></i>
+          <i style="background:#999"></i>
+        </div>
       </div>
     </section>
 
-  </main>
+  </div><!-- /main -->
 
-  <!-- Mobile tab bar (hidden on desktop) -->
-  <nav class="md:hidden shrink-0 bg-white border-t border-gray-200 flex safe-bottom">
-    <button class="tab-btn flex-1 flex flex-col items-center justify-center py-2.5 gap-0.5 text-blue-600 border-t-2 border-blue-600 transition-colors" data-tab="sidebar">
-      <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"/></svg>
-      <span class="text-xs font-semibold">Labels</span>
+  <!-- Mobile tab bar -->
+  <nav class="tab-bar" id="tab-bar">
+    <button class="tab-btn active" data-tab="sidebar">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6h16M4 12h16M4 18h16"/></svg>
+      Labels
     </button>
-    <button class="tab-btn flex-1 flex flex-col items-center justify-center py-2.5 gap-0.5 text-gray-400 border-t-2 border-transparent transition-colors" data-tab="editor">
-      <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>
-      <span class="text-xs font-semibold">Edit</span>
+    <button class="tab-btn" data-tab="editor">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>
+      Edit
     </button>
-    <button class="tab-btn flex-1 flex flex-col items-center justify-center py-2.5 gap-0.5 text-gray-400 border-t-2 border-transparent transition-colors" data-tab="preview">
-      <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>
-      <span class="text-xs font-semibold">Preview</span>
+    <button class="tab-btn" data-tab="preview">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg>
+      Preview
     </button>
   </nav>
 
   <!-- Customs modal -->
-  <div id="customs-modal" class="hidden fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50 p-4">
-    <div class="bg-white rounded-xl shadow-2xl w-full max-w-md">
-      <div class="px-6 py-4 border-b border-gray-200">
-        <h3 class="text-base font-bold text-gray-800">Customs Packing List</h3>
-        <p class="text-xs text-gray-500 mt-0.5">Supporting doc for CBP Form 6059B · fill in before your flight</p>
+  <div class="modal-bg" id="customs-modal">
+    <div class="modal">
+      <div class="modal-hd">
+        <h3>Customs Packing List</h3>
+        <p>Supporting doc for CBP Form 6059B · fill in before your flight</p>
       </div>
-      <div class="px-6 py-4 space-y-3">
-        <div>
-          <label class="block text-xs font-semibold text-gray-600 mb-1">Full Name</label>
-          <input type="text" id="cm-name" placeholder="As it appears on passport"
-            class="w-full border border-gray-300 rounded px-3 py-2 text-sm focus:outline-none focus:border-blue-400">
+      <div class="modal-body">
+        <div class="row">
+          <div class="lab"><span>Full Name</span></div>
+          <div class="fld"><input type="text" id="cm-name" placeholder="As it appears on passport"></div>
         </div>
-        <div class="grid grid-cols-2 gap-3">
-          <div>
-            <label class="block text-xs font-semibold text-gray-600 mb-1">Travel Date</label>
-            <input type="date" id="cm-date"
-              class="w-full border border-gray-300 rounded px-3 py-2 text-sm focus:outline-none focus:border-blue-400">
+        <div class="row-2">
+          <div class="row">
+            <div class="lab"><span>Travel Date</span></div>
+            <div class="fld"><input type="date" id="cm-date"></div>
           </div>
-          <div>
-            <label class="block text-xs font-semibold text-gray-600 mb-1">Flight No. <span class="text-gray-400 font-normal">(optional)</span></label>
-            <input type="text" id="cm-flight" placeholder="e.g. AA 205"
-              class="w-full border border-gray-300 rounded px-3 py-2 text-sm focus:outline-none focus:border-blue-400">
+          <div class="row">
+            <div class="lab"><span>Flight No. <span class="hint" style="text-transform:none">(optional)</span></span></div>
+            <div class="fld"><input type="text" id="cm-flight" placeholder="e.g. AA 205"></div>
           </div>
         </div>
-        <div>
-          <label class="block text-xs font-semibold text-gray-600 mb-1">Port of Entry <span class="text-gray-400 font-normal">(optional)</span></label>
-          <input type="text" id="cm-port" placeholder="e.g. JFK, LAX, ORD"
-            class="w-full border border-gray-300 rounded px-3 py-2 text-sm focus:outline-none focus:border-blue-400">
+        <div class="row">
+          <div class="lab"><span>Port of Entry <span class="hint" style="text-transform:none">(optional)</span></span></div>
+          <div class="fld"><input type="text" id="cm-port" placeholder="e.g. JFK, LAX, ORD"></div>
         </div>
       </div>
-      <div class="px-6 py-4 border-t border-gray-100 flex gap-3 justify-end">
-        <button id="cm-cancel" class="text-sm text-gray-600 hover:text-gray-800 px-4 py-2 rounded border border-gray-300 hover:border-gray-400 transition-colors">Cancel</button>
-        <button id="cm-generate" class="bg-blue-600 hover:bg-blue-500 text-white text-sm font-semibold px-5 py-2 rounded transition-colors">Generate PDF</button>
+      <div class="modal-foot">
+        <button class="btn" id="cm-cancel">Cancel</button>
+        <button class="btn primary" id="cm-generate">Generate PDF</button>
       </div>
     </div>
   </div>
 
-  <script>
-    // ── State ────────────────────────────────────────────────────────────────
-    const state = {
-      templates: [],
-      selectedId: null,
-      paperSize: 'letter',
-      isDirty: false,
-      activeTab: 'sidebar',
+</div><!-- /app -->
+
+<script>
+  // ── State ──────────────────────────────────────────────────────────────────
+  const state = {
+    templates: [],
+    selectedId: null,
+    paperSize: 'letter',
+    isDirty: false,
+    activeTab: 'sidebar',
+    sbFilter: 'all',
+    sbQuery: '',
+    viewMode: 'sticker',
+  };
+
+  // ── Helpers ────────────────────────────────────────────────────────────────
+  function fmtDate(iso) {
+    if (!iso) return '—';
+    try {
+      const d = new Date(iso + 'T00:00:00');
+      return d.toLocaleDateString('en-US', { day: '2-digit', month: 'short', year: 'numeric' }).toUpperCase();
+    } catch { return iso; }
+  }
+
+  function codeFor(idx) {
+    return 'LBL-' + String(idx + 1).padStart(3, '0');
+  }
+
+  function lotFor(code) {
+    return code.replace('LBL-', '26');
+  }
+
+  function pluralize(n, s) { return n === 1 ? `${n} ${s}` : `${n} ${s}s`; }
+
+  function isMobile() { return window.innerWidth < 768; }
+
+  // ── Storage ────────────────────────────────────────────────────────────────
+  function loadTemplates() {
+    try {
+      const raw = localStorage.getItem('label_templates');
+      state.templates = raw ? JSON.parse(raw) : [];
+      // back-fill code for old records
+      state.templates.forEach((t, i) => { if (!t.code) t.code = codeFor(i); });
+    } catch { state.templates = []; }
+  }
+
+  function saveTemplates() {
+    try { localStorage.setItem('label_templates', JSON.stringify(state.templates)); } catch {}
+    showAutosaved();
+  }
+
+  let autosaveTimer;
+  function showAutosaved() {
+    const el = document.getElementById('autosave-label');
+    el.style.display = '';
+    clearTimeout(autosaveTimer);
+    autosaveTimer = setTimeout(() => { el.style.display = 'none'; }, 2200);
+  }
+
+  // ── Mutations ──────────────────────────────────────────────────────────────
+  function createTemplate() {
+    const n = state.templates.length;
+    const tmpl = {
+      id: crypto.randomUUID(),
+      code: codeFor(n),
+      name: 'New template',
+      description: '', ingredients: '', process: '',
+      countryOfOrigin: 'Nepal', netWeight: '',
+      mfdDate: '', expDate: '',
+      printCount: 1,
+      customsQty: '', valueUsd: 0,
+      enabled: true,
     };
+    state.templates.push(tmpl);
+    saveTemplates();
+    state.selectedId = tmpl.id;
+    state.isDirty = false;
+    renderAll();
+    if (isMobile()) setTab('editor');
+  }
 
-    // ── Mobile tabs ──────────────────────────────────────────────────────────
-    const PANELS = { sidebar: 'sidebar-panel', editor: 'editor-panel', preview: 'preview-panel' };
+  function updateTemplate(id, fields) {
+    const t = state.templates.find(t => t.id === id);
+    if (!t) return;
+    Object.assign(t, fields);
+    saveTemplates();
+  }
 
-    function isMobile() { return window.innerWidth < 768; }
+  function deleteTemplate(id) {
+    if (!confirm(`Delete "${state.templates.find(t=>t.id===id)?.name}"? This cannot be undone.`)) return;
+    state.templates = state.templates.filter(t => t.id !== id);
+    saveTemplates();
+    if (state.selectedId === id) {
+      state.selectedId = state.templates[0]?.id || null;
+      state.isDirty = false;
+    }
+    renderAll();
+  }
 
-    function setActiveTab(tab) {
-      state.activeTab = tab;
-      if (!isMobile()) return;
+  function toggleTemplate(id) {
+    const t = state.templates.find(t => t.id === id);
+    if (t) { t.enabled = !t.enabled; saveTemplates(); }
+    renderSidebar(); renderStatbar();
+  }
 
+  function selectTemplate(id) {
+    if (state.isDirty && state.selectedId !== id) {
+      if (!confirm('Discard unsaved changes?')) return;
+    }
+    state.selectedId = id;
+    state.isDirty = false;
+    renderEditor();
+    renderPreview();
+    renderSidebar();
+    if (isMobile()) setTab('editor');
+  }
+
+  // ── Form ───────────────────────────────────────────────────────────────────
+  function getFormValues() {
+    return {
+      name:            document.getElementById('f-name').value.trim(),
+      description:     document.getElementById('f-description').value,
+      ingredients:     document.getElementById('f-ingredients').value,
+      process:         document.getElementById('f-process').value,
+      countryOfOrigin: document.getElementById('f-country').value,
+      netWeight:       document.getElementById('f-weight').value,
+      mfdDate:         document.getElementById('f-mfd-date').value,
+      expDate:         document.getElementById('f-exp-date').value,
+      printCount:      Math.max(1, parseInt(document.getElementById('f-count').value) || 1),
+      customsQty:      document.getElementById('f-customs-qty').value.trim(),
+      valueUsd:        Math.max(0, parseFloat(document.getElementById('f-value').value) || 0),
+    };
+  }
+
+  function setFormDisabled(on) {
+    ['f-name','f-description','f-ingredients','f-process','f-country','f-weight',
+     'f-mfd-date','f-exp-date','f-count','f-customs-qty','f-value'].forEach(id => {
+      document.getElementById(id).disabled = on;
+    });
+    document.getElementById('save-btn').disabled = on;
+    document.getElementById('discard-btn').disabled = on;
+    document.getElementById('delete-btn').disabled = on;
+    document.getElementById('count-dec').disabled = on;
+    document.getElementById('count-inc').disabled = on;
+  }
+
+  // ── Render: Sidebar ────────────────────────────────────────────────────────
+  function renderSidebar() {
+    const list = document.getElementById('sidebar-list');
+    const q = state.sbQuery.toLowerCase();
+    const filter = state.sbFilter;
+
+    const all    = state.templates.length;
+    const active = state.templates.filter(t => t.enabled !== false).length;
+    const hidden = all - active;
+
+    document.getElementById('sb-count').textContent = String(all).padStart(2, '0');
+    document.getElementById('tab-cnt-all').textContent    = all;
+    document.getElementById('tab-cnt-active').textContent = active;
+    document.getElementById('tab-cnt-hidden').textContent = hidden;
+
+    const visible = state.templates.filter(t => {
+      if (filter === 'active' && !t.enabled) return false;
+      if (filter === 'hidden' && t.enabled !== false) return false;
+      if (q && !t.name.toLowerCase().includes(q) && !t.code.toLowerCase().includes(q)) return false;
+      return true;
+    });
+
+    list.innerHTML = '';
+    if (visible.length === 0) {
+      const li = document.createElement('li');
+      li.className = 'sb-empty';
+      li.textContent = all === 0 ? 'No templates yet — click New template' : 'No templates match.';
+      list.appendChild(li);
+      return;
+    }
+
+    visible.forEach(tmpl => {
+      const isSelected = tmpl.id === state.selectedId;
+      const enabled = tmpl.enabled !== false;
+      const li = document.createElement('li');
+      li.className = 'sb-item';
+      li.setAttribute('aria-selected', isSelected);
+      li.setAttribute('data-disabled', !enabled);
+      li.dataset.id = tmpl.id;
+
+      li.innerHTML = `
+        <button class="chk" data-on="${enabled}" data-action="toggle" title="${enabled ? 'Uncheck to exclude' : 'Check to include'}">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12l4 4L19 7"/></svg>
+        </button>
+        <span class="sb-code">${tmpl.code}</span>
+        <span class="sb-name">${tmpl.name || 'Unnamed'}</span>
+        <span class="sb-mult">×${tmpl.printCount}</span>
+        <button class="sb-del" data-action="delete" title="Delete">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/></svg>
+        </button>`;
+
+      list.appendChild(li);
+    });
+
+    renderStatbar();
+  }
+
+  // ── Render: Statbar ────────────────────────────────────────────────────────
+  function renderStatbar() {
+    const active   = state.templates.filter(t => t.enabled !== false);
+    const total    = state.templates.length;
+    const queue    = active.reduce((n, t) => n + (t.printCount || 1), 0);
+    const sheets   = Math.max(0, Math.ceil(queue / 6));
+
+    const isLetter = state.paperSize === 'letter';
+    document.getElementById('sb-page').textContent = isLetter
+      ? 'LETTER · 215.9 × 279.4 mm' : 'A4 · 210.0 × 297.0 mm';
+    document.getElementById('sb-templates').textContent = `${active.length} / ${total}`;
+    document.getElementById('sb-queue').textContent = pluralize(queue, 'label');
+    document.getElementById('sb-output').textContent = pluralize(sheets, 'sheet');
+    document.getElementById('sf-queue').textContent  = pluralize(queue, 'label');
+    document.getElementById('sf-output').textContent = pluralize(sheets, 'sheet');
+    document.getElementById('sheet-count').textContent = `· ${pluralize(sheets, 'sheet')}`;
+
+    const hasTemplates = total > 0;
+    document.getElementById('export-btn').disabled  = !hasTemplates;
+    document.getElementById('customs-btn').disabled = !hasTemplates;
+  }
+
+  // ── Render: Editor ─────────────────────────────────────────────────────────
+  function renderEditor() {
+    const tmpl = state.templates.find(t => t.id === state.selectedId);
+    const noSel = !tmpl;
+    const panel = document.getElementById('editor-panel');
+
+    if (isMobile()) {
+      panel.hidden = (state.activeTab !== 'editor');
+    } else {
+      panel.hidden = false;
+    }
+
+    setFormDisabled(noSel);
+
+    if (noSel) {
+      document.getElementById('crumb-code').textContent = '';
+      document.getElementById('crumb-name').textContent = '';
+      document.getElementById('crumb-sep').style.display = 'none';
+      ['f-name','f-description','f-ingredients','f-process','f-country',
+       'f-weight','f-mfd-date','f-exp-date','f-count','f-customs-qty','f-value'].forEach(id => {
+        const el = document.getElementById(id);
+        el.value = id === 'f-count' ? '1' : '';
+      });
+      document.getElementById('f-lot').value = '';
+      return;
+    }
+
+    document.getElementById('crumb-code').textContent = tmpl.code || '';
+    document.getElementById('crumb-name').textContent = tmpl.name || 'Untitled';
+    document.getElementById('crumb-sep').style.display = '';
+
+    document.getElementById('f-name').value         = tmpl.name;
+    document.getElementById('f-description').value  = tmpl.description;
+    document.getElementById('f-ingredients').value  = tmpl.ingredients;
+    document.getElementById('f-process').value      = tmpl.process;
+    document.getElementById('f-country').value      = tmpl.countryOfOrigin;
+    document.getElementById('f-weight').value       = tmpl.netWeight;
+    document.getElementById('f-mfd-date').value     = tmpl.mfdDate || '';
+    document.getElementById('f-exp-date').value     = tmpl.expDate || '';
+    document.getElementById('f-count').value        = tmpl.printCount;
+    document.getElementById('f-customs-qty').value  = tmpl.customsQty || '';
+    document.getElementById('f-value').value        = tmpl.valueUsd || '';
+    document.getElementById('f-lot').value          = lotFor(tmpl.code || '');
+    document.getElementById('name-hint').textContent = `${tmpl.name.length} / 60 ch`;
+  }
+
+  // ── Render: Preview ────────────────────────────────────────────────────────
+  function renderPreview() {
+    const tmpl = state.templates.find(t => t.id === state.selectedId);
+    const empty = document.getElementById('preview-empty');
+    const stickerWrap = document.getElementById('sticker-wrap');
+    const sheetWrap   = document.getElementById('sheet-wrap');
+    const pvCodeInfo  = document.getElementById('pv-code-info');
+    const panel       = document.getElementById('preview-panel');
+
+    if (isMobile()) {
+      panel.hidden = (state.activeTab !== 'preview');
+    } else {
+      panel.hidden = false;
+    }
+
+    if (!tmpl) {
+      empty.style.display = '';
+      stickerWrap.style.display = 'none';
+      sheetWrap.style.display   = 'none';
+      pvCodeInfo.style.display  = 'none';
+      return;
+    }
+
+    empty.style.display = 'none';
+    pvCodeInfo.style.display = '';
+    document.getElementById('pv-code').textContent = tmpl.code || '';
+
+    if (state.viewMode === 'sticker') {
+      stickerWrap.style.display = '';
+      sheetWrap.style.display   = 'none';
+      renderSticker(tmpl);
+    } else {
+      stickerWrap.style.display = 'none';
+      sheetWrap.style.display   = '';
+      renderSheet(tmpl);
+    }
+  }
+
+  function renderSticker(tmpl) {
+    const v = tmpl;
+    const hasDates = v.mfdDate || v.expDate;
+    let html = `<div class="stk-name">${v.name || 'Product name'}</div>`;
+    if (v.description) html += `<div class="stk-desc">${v.description}</div>`;
+    html += `<hr class="stk-hr">`;
+    if (v.ingredients) {
+      html += `<div class="stk-fl">Ingredients</div>`;
+      html += `<div class="stk-fv" style="-webkit-line-clamp:3;display:-webkit-box;-webkit-box-orient:vertical;overflow:hidden">${v.ingredients}</div>`;
+    }
+    if (v.process) {
+      html += `<div class="stk-fl">Process</div>`;
+      html += `<div class="stk-fv" style="-webkit-line-clamp:2;display:-webkit-box;-webkit-box-orient:vertical;overflow:hidden">${v.process}</div>`;
+    }
+    html += `<div class="stk-bot">
+      <div><div class="blab">Net Weight</div><div class="bval">${v.netWeight || '—'}</div></div>
+      <div><div class="blab">Country of Origin</div><div class="bval">${v.countryOfOrigin || '—'}</div></div>`;
+    if (hasDates) {
+      html += `<div class="bdates">
+        <div><div class="blab">Mfd Date</div><div class="bval">${fmtDate(v.mfdDate)}</div></div>
+        <div><div class="blab">Best By</div><div class="bval">${fmtDate(v.expDate)}</div></div>
+      </div>`;
+    }
+    html += `</div>`;
+    document.getElementById('sticker-content').innerHTML = html;
+  }
+
+  function renderSheet(tmpl) {
+    const wrap = document.getElementById('sheet-wrap');
+    const isLetter = state.paperSize === 'letter';
+    const pageW = isLetter ? 215.9 : 210;
+    const pageH = isLetter ? 279.4 : 297;
+    const maxH = Math.min(wrap.parentElement.offsetHeight - 80, 420);
+    const scale = maxH / pageH;
+    const pw = pageW * scale, ph = pageH * scale;
+    const lw = 90 * scale, lh = 60 * scale;
+    const mx = (isLetter ? 12.95 : 10) * scale;
+    const my = 15 * scale;
+    const gx = (isLetter ? 9 : 10) * scale;
+    const gy = 7 * scale;
+
+    wrap.style.cssText = `width:${pw}px;height:${ph}px;background:#fff;position:relative;
+      box-shadow:0 1px 0 oklch(0% 0 0/.04),0 8px 20px oklch(0% 0 0/.14),0 24px 40px oklch(0% 0 0/.07)`;
+
+    let html = '';
+    for (let r = 0; r < 3; r++) {
+      for (let c = 0; c < 2; c++) {
+        const lx = mx + c * (lw + gx);
+        const ly = my + r * (lh + gy);
+        html += `<div style="position:absolute;left:${lx}px;top:${ly}px;width:${lw}px;height:${lh}px;
+          border:1px dashed oklch(0% 0 0/.25);padding:${4*scale}px;overflow:hidden;
+          font-family:var(--font-label);display:flex;flex-direction:column;gap:1px">
+          <div style="font-size:${11*scale}px;font-weight:700;color:#111;line-height:1.1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${tmpl.name || 'Product'}</div>
+          <div style="font-size:${5*scale}px;color:#555;line-height:1.2;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden">${tmpl.description || ''}</div>
+          <div style="flex:1"></div>
+          <div style="border-top:1px solid #ddd;padding-top:${2*scale}px;display:flex;justify-content:space-between;font-size:${5*scale}px;color:#333">
+            <b>${tmpl.netWeight || '—'}</b><span>${tmpl.countryOfOrigin || ''}</span>
+          </div>
+        </div>`;
+      }
+    }
+    html += `<div style="position:absolute;bottom:-22px;right:0;font-family:var(--font-mono);font-size:10px;color:var(--mute);letter-spacing:.04em">
+      ${isLetter ? 'US LETTER · 8.5 × 11 in' : 'A4 · 210 × 297 mm'} · 2 × 3 GRID
+    </div>`;
+    wrap.innerHTML = html;
+  }
+
+  function renderAll() {
+    renderSidebar();
+    renderEditor();
+    renderPreview();
+  }
+
+  // ── Ruler ticks (drawn once) ───────────────────────────────────────────────
+  function buildRulers() {
+    const rh = document.getElementById('ruler-h');
+    const rv = document.getElementById('ruler-v');
+    let hHtml = '', vHtml = '';
+    for (let i = 0; i <= 100; i++) {
+      const major = i % 10 === 0, mid = i % 5 === 0;
+      const hTop = major ? 6 : mid ? 11 : 14;
+      const vLeft = major ? 6 : mid ? 11 : 14;
+      const op = major ? 1 : mid ? .7 : .4;
+      hHtml += `<div style="position:absolute;left:${i}%;top:${hTop}px;bottom:0;width:1px;background:var(--line-dk);opacity:${op}"></div>`;
+      vHtml += `<div style="position:absolute;top:${i}%;left:${vLeft}px;right:0;height:1px;background:var(--line-dk);opacity:${op}"></div>`;
+      if (major && i > 0 && i < 100) {
+        hHtml += `<span style="position:absolute;left:calc(${i}% + 3px);top:3px;font-size:8.5px;color:var(--mute);font-family:var(--font-mono)">${i}</span>`;
+        vHtml += `<span style="position:absolute;top:calc(${i}% + 2px);left:2px;font-size:8.5px;color:var(--mute);font-family:var(--font-mono);writing-mode:vertical-rl;transform:rotate(180deg)">${i}</span>`;
+      }
+    }
+    rh.innerHTML = hHtml;
+    rv.innerHTML = vHtml;
+  }
+
+  // ── PDF: label ─────────────────────────────────────────────────────────────
+  function drawLabel(doc, tmpl, x, y, w, h) {
+    doc.setDrawColor(100,100,100); doc.setLineWidth(0.25);
+    doc.setLineDash([1.5,1.5],0);
+    doc.rect(x, y, w, h);
+    doc.setLineDash([],0);
+
+    const PAD = 3.5, CW = w - PAD*2;
+    let cy = y + PAD + 4;
+
+    doc.setFont('helvetica','bold'); doc.setFontSize(11); doc.setTextColor(20,20,20);
+    doc.text(doc.splitTextToSize(tmpl.name||'Unnamed', CW)[0], x+PAD, cy);
+    cy += 5.5;
+
+    if (tmpl.description?.trim()) {
+      doc.setFont('helvetica','normal'); doc.setFontSize(7.5); doc.setTextColor(90,90,90);
+      const lines = doc.splitTextToSize(tmpl.description, CW).slice(0,2);
+      doc.text(lines, x+PAD, cy); cy += lines.length*3.4+1.5;
+    }
+
+    doc.setDrawColor(210,210,210); doc.setLineWidth(0.2);
+    doc.line(x+PAD, cy, x+w-PAD, cy); cy += 3.5;
+
+    if (tmpl.ingredients?.trim()) {
+      doc.setFont('helvetica','bold'); doc.setFontSize(7); doc.setTextColor(50,50,50);
+      doc.text('Ingredients:', x+PAD, cy); cy += 3.8;
+      doc.setFont('helvetica','normal'); doc.setTextColor(70,70,70);
+      const lines = doc.splitTextToSize(tmpl.ingredients, CW).slice(0,3);
+      doc.text(lines, x+PAD, cy); cy += lines.length*3.2+2;
+    }
+
+    if (tmpl.process?.trim()) {
+      doc.setFont('helvetica','bold'); doc.setFontSize(7); doc.setTextColor(50,50,50);
+      doc.text('Process:', x+PAD, cy); cy += 3.8;
+      doc.setFont('helvetica','normal'); doc.setTextColor(70,70,70);
+      const lines = doc.splitTextToSize(tmpl.process, CW).slice(0,2);
+      doc.text(lines, x+PAD, cy);
+    }
+
+    const hasDates = (tmpl.mfdDate?.trim()) || (tmpl.expDate?.trim());
+    const stripH = hasDates ? 22 : 14;
+    const stripY = y + h - stripH;
+    doc.setDrawColor(210,210,210); doc.setLineWidth(0.2);
+    doc.line(x+PAD, stripY, x+w-PAD, stripY);
+
+    const halfW = CW/2;
+    doc.setFont('helvetica','bold'); doc.setFontSize(6); doc.setTextColor(120,120,120);
+    doc.text('NET WEIGHT', x+PAD, stripY+3.5);
+    doc.setFont('helvetica','normal'); doc.setFontSize(8); doc.setTextColor(20,20,20);
+    doc.text(tmpl.netWeight||'—', x+PAD, stripY+8);
+
+    const rX = x+PAD+halfW+2;
+    doc.setFont('helvetica','bold'); doc.setFontSize(6); doc.setTextColor(120,120,120);
+    doc.text('COUNTRY OF ORIGIN', rX, stripY+3.5);
+    doc.setFont('helvetica','normal'); doc.setFontSize(8); doc.setTextColor(20,20,20);
+    doc.text(tmpl.countryOfOrigin||'Nepal', rX, stripY+8);
+
+    if (hasDates) {
+      doc.setDrawColor(210,210,210); doc.setLineWidth(0.2);
+      doc.line(x+PAD, stripY+11, x+w-PAD, stripY+11);
+      if (tmpl.mfdDate?.trim()) {
+        doc.setFont('helvetica','bold'); doc.setFontSize(6); doc.setTextColor(120,120,120);
+        doc.text('MFD DATE', x+PAD, stripY+14.5);
+        doc.setFont('helvetica','normal'); doc.setFontSize(8); doc.setTextColor(20,20,20);
+        doc.text(tmpl.mfdDate, x+PAD, stripY+19);
+      }
+      if (tmpl.expDate?.trim()) {
+        doc.setFont('helvetica','bold'); doc.setFontSize(6); doc.setTextColor(120,120,120);
+        doc.text('BEST BY', rX, stripY+14.5);
+        doc.setFont('helvetica','normal'); doc.setFontSize(8); doc.setTextColor(20,20,20);
+        doc.text(tmpl.expDate, rX, stripY+19);
+      }
+    }
+  }
+
+  function generatePDF() {
+    const queue = [];
+    for (const tmpl of state.templates) {
+      if (tmpl.enabled === false) continue;
+      const n = Math.max(1, Math.floor(tmpl.printCount||1));
+      for (let i=0; i<n; i++) queue.push(tmpl);
+    }
+    if (queue.length === 0) { alert('No active labels to export.'); return; }
+
+    const { jsPDF } = window.jspdf;
+    const isLetter = state.paperSize === 'letter';
+    const doc = new jsPDF({ orientation:'portrait', unit:'mm', format: isLetter?'letter':'a4' });
+
+    const MX = isLetter ? 12.95 : 10, MY = 15;
+    const LW = 90, LH = 60, GX = isLetter ? 9 : 10, GY = 7;
+    const PER = 6;
+
+    for (let i=0; i<queue.length; i++) {
+      const slot = i % PER;
+      if (slot === 0 && i > 0) doc.addPage();
+      const col = slot % 2, row = Math.floor(slot/2);
+      drawLabel(doc, queue[i], MX+col*(LW+GX), MY+row*(LH+GY), LW, LH);
+    }
+    doc.save('labels.pdf');
+  }
+
+  // ── PDF: Customs ───────────────────────────────────────────────────────────
+  function generateCustomsPDF(info) {
+    const { jsPDF } = window.jspdf;
+    const doc = new jsPDF({ orientation:'portrait', unit:'mm', format:'letter' });
+    const ML=15, MT=15, PW=215.9, CW=PW-ML*2;
+    let cy = MT;
+
+    doc.setFont('helvetica','bold'); doc.setFontSize(15); doc.setTextColor(20,20,20);
+    doc.text('CUSTOMS SUPPLEMENTARY PACKING LIST', PW/2, cy, {align:'center'}); cy+=6;
+    doc.setFont('helvetica','italic'); doc.setFontSize(8); doc.setTextColor(110,110,110);
+    doc.text('Supporting document for CBP Form 6059B  ·  All items for personal use, not for commercial resale', PW/2, cy, {align:'center'}); cy+=10;
+
+    doc.setDrawColor(180,180,180); doc.setLineWidth(0.4);
+    doc.rect(ML, cy, CW, 24);
+    const infoRows=[
+      [{label:'Traveler Name:', value:info.name, w:CW*.55},{label:'Date of Arrival:', value:info.date, w:CW*.45}],
+      [{label:'Flight No.:', value:info.flight||'—', w:CW*.55},{label:'Port of Entry:', value:info.port||'—', w:CW*.45}],
+    ];
+    let iy=cy+7;
+    infoRows.forEach(row => {
+      let ix=ML+4;
+      row.forEach(cell => {
+        doc.setFont('helvetica','bold'); doc.setFontSize(7.5); doc.setTextColor(100,100,100);
+        doc.text(cell.label, ix, iy);
+        doc.setFont('helvetica','normal'); doc.setTextColor(20,20,20);
+        doc.text(cell.value||'________________________', ix+30, iy);
+        ix+=cell.w;
+      }); iy+=9;
+    }); cy+=30;
+
+    const cols=[
+      {label:'#', w:8, align:'center'},
+      {label:'Product', w:50, align:'left'},
+      {label:'Origin', w:22, align:'left'},
+      {label:'Qty', w:11, align:'center'},
+      {label:'Unit $', w:22, align:'right'},
+      {label:'Total $', w:22, align:'right'},
+      {label:'Description / Ingredients', w:CW-135, align:'left'},
+    ];
+    const HDR=8, ROW=9;
+
+    doc.setFillColor(30,41,59); doc.rect(ML,cy,CW,HDR,'F');
+    doc.setFont('helvetica','bold'); doc.setFontSize(7.5); doc.setTextColor(255,255,255);
+    let cx=ML;
+    cols.forEach(col => {
+      const tx=col.align==='center'?cx+col.w/2:col.align==='right'?cx+col.w-2:cx+2;
+      doc.text(col.label,tx,cy+5.5,{align:col.align}); cx+=col.w;
+    }); cy+=HDR;
+
+    const active=state.templates.filter(t=>t.enabled!==false);
+    let grand=0;
+    active.forEach((tmpl,idx)=>{
+      const qtyText=tmpl.customsQty||String(Math.max(1,Math.floor(tmpl.printCount||1)));
+      const qtyNum=parseFloat(qtyText);
+      const isNum=!isNaN(qtyNum)&&String(qtyNum)===qtyText.trim();
+      const val=parseFloat(tmpl.valueUsd)||0;
+      const unit=isNum?val:0, total=isNum?qtyNum*val:val;
+      grand+=total;
+
+      if(idx%2===1){doc.setFillColor(248,250,252);doc.rect(ML,cy,CW,ROW,'F');}
+      doc.setDrawColor(220,220,220);doc.setLineWidth(0.2);doc.rect(ML,cy,CW,ROW);
+      doc.setFont('helvetica','normal');doc.setFontSize(7.5);doc.setTextColor(25,25,25);
+
+      const desc=[tmpl.description,tmpl.ingredients].filter(Boolean).join(' · ')||'—';
+      const cells=[String(idx+1),tmpl.name||'—',tmpl.countryOfOrigin||'—',qtyText,
+        isNum&&val>0?'$'+unit.toFixed(2):'—',val>0?'$'+total.toFixed(2):'—',desc];
+      cx=ML;
+      cols.forEach((col,ci)=>{
+        const tx=col.align==='center'?cx+col.w/2:col.align==='right'?cx+col.w-2:cx+2;
+        doc.text(doc.splitTextToSize(cells[ci],col.w-3)[0],tx,cy+6,{align:col.align});
+        doc.setDrawColor(220,220,220);doc.line(cx+col.w,cy,cx+col.w,cy+ROW);
+        cx+=col.w;
+      }); cy+=ROW;
+    });
+
+    doc.setFillColor(226,232,240);doc.rect(ML,cy,CW,ROW,'F');
+    doc.setDrawColor(100,100,100);doc.setLineWidth(0.4);doc.rect(ML,cy,CW,ROW);
+    doc.setFont('helvetica','bold');doc.setFontSize(8);doc.setTextColor(20,20,20);
+    doc.text('TOTAL DECLARED VALUE',ML+CW-cols[6].w-cols[5].w-2,cy+6,{align:'right'});
+    doc.text('$'+grand.toFixed(2),ML+CW-2,cy+6,{align:'right'}); cy+=ROW+7;
+
+    doc.setFont('helvetica','normal');doc.setFontSize(7.5);
+    const rem=800-grand;
+    if(rem>=0){doc.setTextColor(22,101,52);doc.text(`Total $${grand.toFixed(2)} USD is within the $800 personal duty-free exemption ($${rem.toFixed(2)} remaining).`,ML,cy);}
+    else{doc.setTextColor(185,28,28);doc.text(`Total $${grand.toFixed(2)} USD exceeds the $800 personal exemption by $${Math.abs(rem).toFixed(2)} — duties may apply.`,ML,cy);}
+    cy+=9;
+
+    doc.setTextColor(60,60,60);doc.setFontSize(7.5);
+    ['All items listed are for personal use only and are not intended for commercial resale.',
+     'I certify the information above is true and accurate to the best of my knowledge.',
+     'Food, agricultural, and other restricted items have been declared to CBP as required.',
+    ].forEach(line=>{doc.text('• '+line,ML,cy);cy+=5;});
+    doc.save('customs-packing-list.pdf');
+  }
+
+  // ── Mobile tabs ────────────────────────────────────────────────────────────
+  function setTab(tab) {
+    state.activeTab = tab;
+    document.querySelectorAll('.tab-btn').forEach(btn => {
+      btn.classList.toggle('active', btn.dataset.tab === tab);
+    });
+    const PANELS = { sidebar:'sidebar-panel', editor:'editor-panel', preview:'preview-panel' };
+    if (isMobile()) {
       Object.entries(PANELS).forEach(([name, id]) => {
-        const panel = document.getElementById(id);
-        if (name === tab) panel.classList.remove('hidden');
-        else panel.classList.add('hidden');
-      });
-
-      document.querySelectorAll('.tab-btn').forEach(btn => {
-        const active = btn.dataset.tab === tab;
-        btn.classList.toggle('text-blue-600', active);
-        btn.classList.toggle('border-blue-600', active);
-        btn.classList.toggle('text-gray-400', !active);
-        btn.classList.toggle('border-transparent', !active);
+        document.getElementById(id).hidden = (name !== tab);
       });
     }
-
-    // ── Storage ──────────────────────────────────────────────────────────────
-    function generateId() { return crypto.randomUUID(); }
-
-    function loadTemplates() {
-      try {
-        const raw = localStorage.getItem('label_templates');
-        state.templates = raw ? JSON.parse(raw) : [];
-      } catch (e) {
-        console.warn('localStorage read failed:', e);
-        state.templates = [];
-      }
-    }
-
-    function saveTemplates() {
-      try {
-        localStorage.setItem('label_templates', JSON.stringify(state.templates));
-      } catch (e) {
-        console.warn('localStorage write failed:', e);
-      }
-    }
-
-    // ── Mutations ────────────────────────────────────────────────────────────
-    function createTemplate() {
-      const tmpl = {
-        id: generateId(),
-        name: 'New Label',
-        description: '',
-        ingredients: '',
-        process: '',
-        countryOfOrigin: 'Nepal',
-        netWeight: '',
-        mfdDate: '',
-        expDate: '',
-        printCount: 1,
-        customsQty: '',
-        valueUsd: 0,
-        enabled: true,
-      };
-      state.templates.push(tmpl);
-      saveTemplates();
-      renderSidebar();
-      selectTemplate(tmpl.id, true);
-      setActiveTab('editor');
-    }
-
-    function updateTemplate(id, fields) {
-      const idx = state.templates.findIndex(t => t.id === id);
-      if (idx === -1) return;
-      state.templates[idx] = { ...state.templates[idx], ...fields };
-      saveTemplates();
-    }
-
-    function deleteTemplate(id) {
-      state.templates = state.templates.filter(t => t.id !== id);
-      saveTemplates();
-      if (state.selectedId === id) {
-        state.selectedId = null;
-        state.isDirty = false;
-      }
-      renderSidebar();
-      renderEditor();
-      renderPreview();
-    }
-
-    function toggleTemplate(id) {
-      const tmpl = state.templates.find(t => t.id === id);
-      if (!tmpl) return;
-      tmpl.enabled = !tmpl.enabled;
-      saveTemplates();
-      renderSidebar();
-    }
-
-    function selectTemplate(id, force) {
-      if (!force && state.isDirty && state.selectedId !== id) {
-        if (!window.confirm('You have unsaved changes. Discard and switch?')) return;
-      }
-      state.selectedId = id;
-      state.isDirty = false;
-      renderSidebar();
-      renderEditor();
-      renderPreview();
-    }
-
-    // ── Form Helpers ─────────────────────────────────────────────────────────
-    const FIELDS = ['f-name','f-description','f-ingredients','f-process','f-country','f-weight','f-mfd-date','f-exp-date','f-count','f-customs-qty','f-value'];
-
-    function getFormValues() {
-      return {
-        name:            document.getElementById('f-name').value.trim(),
-        description:     document.getElementById('f-description').value,
-        ingredients:     document.getElementById('f-ingredients').value,
-        process:         document.getElementById('f-process').value,
-        countryOfOrigin: document.getElementById('f-country').value,
-        netWeight:       document.getElementById('f-weight').value,
-        mfdDate:         document.getElementById('f-mfd-date').value,
-        expDate:         document.getElementById('f-exp-date').value,
-        printCount:      Math.max(1, Math.floor(Number(document.getElementById('f-count').value) || 1)),
-        customsQty:      document.getElementById('f-customs-qty').value.trim(),
-        valueUsd:        Math.max(0, parseFloat(document.getElementById('f-value').value) || 0),
-      };
-    }
-
-    function setFormEnabled(on) {
-      FIELDS.forEach(id => { document.getElementById(id).disabled = !on; });
-      document.getElementById('save-btn').disabled = !on;
-    }
-
-    // ── Render: Sidebar ──────────────────────────────────────────────────────
-    function renderSidebar() {
-      const list = document.getElementById('sidebar-list');
-      list.innerHTML = '';
-
-      const hasTemplates = state.templates.length > 0;
-      document.getElementById('generate-pdf-btn').disabled = !hasTemplates;
-      document.getElementById('customs-btn').disabled = !hasTemplates;
-
-      if (!hasTemplates) {
-        const empty = document.createElement('li');
-        empty.className = 'text-gray-400 text-xs italic text-center py-10';
-        empty.textContent = 'No labels yet — tap + New Label';
-        list.appendChild(empty);
-        return;
-      }
-
-      state.templates.forEach(tmpl => {
-        const isSelected = tmpl.id === state.selectedId;
-        const enabled    = tmpl.enabled !== false; // default true for old records
-
-        const li = document.createElement('li');
-        li.className = 'flex items-center gap-2 rounded px-2 py-2 cursor-pointer group transition-colors ' +
-          (isSelected ? 'bg-blue-100 text-blue-800' : 'hover:bg-gray-100 text-gray-700');
-        li.dataset.id = tmpl.id;
-        li.dataset.action = 'select';
-
-        // Checkbox
-        const chk = document.createElement('input');
-        chk.type = 'checkbox';
-        chk.checked = enabled;
-        chk.className = 'shrink-0 accent-blue-600 cursor-pointer';
-        chk.dataset.id = tmpl.id;
-        chk.dataset.action = 'toggle';
-        chk.title = enabled ? 'Uncheck to exclude from exports' : 'Check to include in exports';
-
-        const nameSpan = document.createElement('span');
-        nameSpan.className = 'flex-1 text-sm md:text-xs font-medium truncate pointer-events-none ' +
-          (!enabled ? 'line-through opacity-40' : '');
-        nameSpan.textContent = tmpl.name || 'Unnamed';
-
-        const badge = document.createElement('span');
-        badge.className = 'text-xs shrink-0 ' +
-          (!enabled ? 'opacity-30 ' : '') +
-          (isSelected ? 'text-blue-500' : 'text-gray-400');
-        badge.textContent = '×' + tmpl.printCount;
-
-        const delBtn = document.createElement('button');
-        delBtn.type = 'button';
-        delBtn.className = 'opacity-0 group-hover:opacity-100 text-red-400 hover:text-red-600 text-xs leading-none shrink-0 transition-opacity p-1';
-        delBtn.textContent = '✕';
-        delBtn.dataset.id = tmpl.id;
-        delBtn.dataset.action = 'delete';
-        delBtn.title = 'Delete label';
-
-        li.appendChild(chk);
-        li.appendChild(nameSpan);
-        li.appendChild(badge);
-        li.appendChild(delBtn);
-        list.appendChild(li);
-      });
-    }
-
-    // ── Render: Editor ───────────────────────────────────────────────────────
-    function renderEditor() {
-      const tmpl = state.templates.find(t => t.id === state.selectedId);
-      const title = document.getElementById('editor-title');
-
-      if (!tmpl) {
-        title.textContent = 'Select or create a label to begin';
-        setFormEnabled(false);
-        FIELDS.forEach(id => {
-          document.getElementById(id).value = id === 'f-count' ? '1' : '';
-        });
-        return;
-      }
-
-      title.textContent = 'Edit Label';
-      setFormEnabled(true);
-      document.getElementById('f-name').value         = tmpl.name;
-      document.getElementById('f-description').value  = tmpl.description;
-      document.getElementById('f-ingredients').value  = tmpl.ingredients;
-      document.getElementById('f-process').value      = tmpl.process;
-      document.getElementById('f-country').value      = tmpl.countryOfOrigin;
-      document.getElementById('f-weight').value       = tmpl.netWeight;
-      document.getElementById('f-mfd-date').value     = tmpl.mfdDate || '';
-      document.getElementById('f-exp-date').value     = tmpl.expDate || '';
-      document.getElementById('f-count').value        = tmpl.printCount;
-      document.getElementById('f-customs-qty').value  = tmpl.customsQty || '';
-      document.getElementById('f-value').value        = tmpl.valueUsd || '';
-    }
-
-    // ── Render: Preview ──────────────────────────────────────────────────────
-    function el(tag, cls, text) {
-      const e = document.createElement(tag);
-      if (cls) e.className = cls;
-      if (text !== undefined) e.textContent = text;
-      return e;
-    }
-
-    function renderPreview() {
-      const label = document.getElementById('preview-label');
-      const empty = document.getElementById('preview-empty');
-      const note  = document.getElementById('preview-note');
-
-      if (!state.selectedId) {
-        label.classList.add('hidden');
-        empty.classList.remove('hidden');
-        note.classList.add('hidden');
-        return;
-      }
-
-      empty.classList.add('hidden');
-      label.classList.remove('hidden');
-      note.classList.remove('hidden');
-
-      const v = getFormValues();
-      label.innerHTML = '';
-
-      label.appendChild(el('div', 'pv-name', v.name || 'Product Name'));
-      if (v.description) label.appendChild(el('div', 'pv-desc', v.description));
-      label.appendChild(el('hr', 'pv-hr'));
-
-      if (v.ingredients) {
-        label.appendChild(el('div', 'pv-fl', 'Ingredients'));
-        const ing = el('div', 'pv-fv', v.ingredients);
-        ing.style.webkitLineClamp = '3';
-        label.appendChild(ing);
-      }
-
-      if (v.process) {
-        label.appendChild(el('div', 'pv-fl', 'Process'));
-        const proc = el('div', 'pv-fv', v.process);
-        proc.style.webkitLineClamp = '2';
-        label.appendChild(proc);
-      }
-
-      const bot = el('div', 'pv-bot');
-      bot.style.flexWrap = 'wrap';
-      if (v.netWeight) {
-        const half = el('div', 'pv-bhalf');
-        half.appendChild(el('div', 'pv-bl', 'Net Weight'));
-        half.appendChild(el('div', 'pv-bv', v.netWeight));
-        bot.appendChild(half);
-      }
-      if (v.countryOfOrigin) {
-        const half = el('div', 'pv-bhalf');
-        half.appendChild(el('div', 'pv-bl', 'Country of Origin'));
-        half.appendChild(el('div', 'pv-bv', v.countryOfOrigin));
-        bot.appendChild(half);
-      }
-      if (v.mfdDate || v.expDate) {
-        const sep = el('div', '');
-        sep.style.cssText = 'width:100%;border-top:1px solid #eee;margin:3px 0 2px;flex-basis:100%';
-        bot.appendChild(sep);
-        if (v.mfdDate) {
-          const half = el('div', 'pv-bhalf');
-          half.appendChild(el('div', 'pv-bl', 'Mfd Date'));
-          half.appendChild(el('div', 'pv-bv', v.mfdDate));
-          bot.appendChild(half);
-        }
-        if (v.expDate) {
-          const half = el('div', 'pv-bhalf');
-          half.appendChild(el('div', 'pv-bl', 'Best By'));
-          half.appendChild(el('div', 'pv-bv', v.expDate));
-          bot.appendChild(half);
-        }
-      }
-      label.appendChild(bot);
-    }
-
-    // ── PDF ──────────────────────────────────────────────────────────────────
-    function drawLabel(doc, tmpl, x, y, w, h) {
-      doc.setDrawColor(100, 100, 100);
-      doc.setLineWidth(0.25);
-      doc.setLineDash([1.5, 1.5], 0);
-      doc.rect(x, y, w, h);
-      doc.setLineDash([], 0);
-
-      const PAD = 3.5;
-      const contentW = w - PAD * 2;
-      let cy = y + PAD + 4;
-
-      doc.setFont('helvetica', 'bold');
-      doc.setFontSize(11);
-      doc.setTextColor(20, 20, 20);
-      const nameLine = doc.splitTextToSize(tmpl.name || 'Unnamed', contentW)[0];
-      doc.text(nameLine, x + PAD, cy);
-      cy += 5.5;
-
-      if (tmpl.description && tmpl.description.trim()) {
-        doc.setFont('helvetica', 'normal');
-        doc.setFontSize(7.5);
-        doc.setTextColor(90, 90, 90);
-        const lines = doc.splitTextToSize(tmpl.description, contentW).slice(0, 2);
-        doc.text(lines, x + PAD, cy);
-        cy += lines.length * 3.4 + 1.5;
-      }
-
-      doc.setDrawColor(210, 210, 210);
-      doc.setLineWidth(0.2);
-      doc.line(x + PAD, cy, x + w - PAD, cy);
-      cy += 3.5;
-
-      if (tmpl.ingredients && tmpl.ingredients.trim()) {
-        doc.setFont('helvetica', 'bold');
-        doc.setFontSize(7);
-        doc.setTextColor(50, 50, 50);
-        doc.text('Ingredients:', x + PAD, cy);
-        cy += 3.8;
-        doc.setFont('helvetica', 'normal');
-        doc.setTextColor(70, 70, 70);
-        const lines = doc.splitTextToSize(tmpl.ingredients, contentW).slice(0, 3);
-        doc.text(lines, x + PAD, cy);
-        cy += lines.length * 3.2 + 2;
-      }
-
-      if (tmpl.process && tmpl.process.trim()) {
-        doc.setFont('helvetica', 'bold');
-        doc.setFontSize(7);
-        doc.setTextColor(50, 50, 50);
-        doc.text('Process:', x + PAD, cy);
-        cy += 3.8;
-        doc.setFont('helvetica', 'normal');
-        doc.setTextColor(70, 70, 70);
-        const lines = doc.splitTextToSize(tmpl.process, contentW).slice(0, 2);
-        doc.text(lines, x + PAD, cy);
-      }
-
-      const hasDates = (tmpl.mfdDate && tmpl.mfdDate.trim()) || (tmpl.expDate && tmpl.expDate.trim());
-      const stripH = hasDates ? 22 : 14;
-      const stripY = y + h - stripH;
-      doc.setDrawColor(210, 210, 210);
-      doc.setLineWidth(0.2);
-      doc.line(x + PAD, stripY, x + w - PAD, stripY);
-
-      const halfW = contentW / 2;
-
-      doc.setFont('helvetica', 'bold');
-      doc.setFontSize(6);
-      doc.setTextColor(120, 120, 120);
-      doc.text('NET WEIGHT', x + PAD, stripY + 3.5);
-      doc.setFont('helvetica', 'normal');
-      doc.setFontSize(8);
-      doc.setTextColor(20, 20, 20);
-      doc.text(tmpl.netWeight || '—', x + PAD, stripY + 8);
-
-      const rightX = x + PAD + halfW + 2;
-      doc.setFont('helvetica', 'bold');
-      doc.setFontSize(6);
-      doc.setTextColor(120, 120, 120);
-      doc.text('COUNTRY OF ORIGIN', rightX, stripY + 3.5);
-      doc.setFont('helvetica', 'normal');
-      doc.setFontSize(8);
-      doc.setTextColor(20, 20, 20);
-      doc.text(tmpl.countryOfOrigin || 'Nepal', rightX, stripY + 8);
-
-      if (hasDates) {
-        doc.setDrawColor(210, 210, 210);
-        doc.setLineWidth(0.2);
-        doc.line(x + PAD, stripY + 11, x + w - PAD, stripY + 11);
-
-        if (tmpl.mfdDate && tmpl.mfdDate.trim()) {
-          doc.setFont('helvetica', 'bold');
-          doc.setFontSize(6);
-          doc.setTextColor(120, 120, 120);
-          doc.text('MFD DATE', x + PAD, stripY + 14.5);
-          doc.setFont('helvetica', 'normal');
-          doc.setFontSize(8);
-          doc.setTextColor(20, 20, 20);
-          doc.text(tmpl.mfdDate, x + PAD, stripY + 19);
-        }
-
-        if (tmpl.expDate && tmpl.expDate.trim()) {
-          doc.setFont('helvetica', 'bold');
-          doc.setFontSize(6);
-          doc.setTextColor(120, 120, 120);
-          doc.text('BEST BY', rightX, stripY + 14.5);
-          doc.setFont('helvetica', 'normal');
-          doc.setFontSize(8);
-          doc.setTextColor(20, 20, 20);
-          doc.text(tmpl.expDate, rightX, stripY + 19);
-        }
-      }
-    }
-
-    function generatePDF() {
-      if (state.templates.length === 0) {
-        alert('Add at least one label template before generating.');
-        return;
-      }
-
-      const queue = [];
-      for (const tmpl of state.templates) {
-        if (tmpl.enabled === false) continue;
-        const n = Math.max(1, Math.floor(tmpl.printCount || 1));
-        for (let i = 0; i < n; i++) queue.push(tmpl);
-      }
-
-      const { jsPDF } = window.jspdf;
-      const isLetter = state.paperSize === 'letter';
-
-      const doc = new jsPDF({
-        orientation: 'portrait',
-        unit: 'mm',
-        format: isLetter ? 'letter' : 'a4',
-      });
-
-      const MARGIN_X = isLetter ? 12.95 : 10;
-      const MARGIN_Y = 15;
-      const LABEL_W  = 90;
-      const LABEL_H  = 60;
-      const GAP_X    = isLetter ? 9 : 10;
-      const GAP_Y    = 7;
-      const COLS     = 2;
-      const ROWS     = 3;
-      const PER_PAGE = COLS * ROWS;
-
-      for (let i = 0; i < queue.length; i++) {
-        const slot = i % PER_PAGE;
-        if (slot === 0 && i > 0) doc.addPage();
-        const col = slot % COLS;
-        const row = Math.floor(slot / COLS);
-        const x = MARGIN_X + col * (LABEL_W + GAP_X);
-        const y = MARGIN_Y + row * (LABEL_H + GAP_Y);
-        drawLabel(doc, queue[i], x, y, LABEL_W, LABEL_H);
-      }
-
-      doc.save('labels.pdf');
-    }
-
-    // ── Customs PDF ──────────────────────────────────────────────────────────
-    function generateCustomsPDF(info) {
-      const { jsPDF } = window.jspdf;
-      const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'letter' });
-
-      const ML = 15, MT = 15, PW = 215.9;
-      const CW = PW - ML * 2;
-      let cy = MT;
-
-      // Title
-      doc.setFont('helvetica', 'bold');
-      doc.setFontSize(15);
-      doc.setTextColor(20, 20, 20);
-      doc.text('CUSTOMS SUPPLEMENTARY PACKING LIST', PW / 2, cy, { align: 'center' });
-      cy += 6;
-
-      doc.setFont('helvetica', 'italic');
-      doc.setFontSize(8);
-      doc.setTextColor(110, 110, 110);
-      doc.text('Supporting document for CBP Form 6059B  ·  All items for personal use, not for commercial resale', PW / 2, cy, { align: 'center' });
-      cy += 10;
-
-      // Traveler info box
-      doc.setDrawColor(180, 180, 180);
-      doc.setLineWidth(0.4);
-      doc.rect(ML, cy, CW, 24);
-
-      const infoRows = [
-        [{ label: 'Traveler Name:', value: info.name, w: CW * 0.55 },
-         { label: 'Date of Arrival:', value: info.date, w: CW * 0.45 }],
-        [{ label: 'Flight No.:', value: info.flight || '—', w: CW * 0.55 },
-         { label: 'Port of Entry:', value: info.port || '—', w: CW * 0.45 }],
-      ];
-
-      let iy = cy + 7;
-      infoRows.forEach(row => {
-        let ix = ML + 4;
-        row.forEach(cell => {
-          doc.setFont('helvetica', 'bold');
-          doc.setFontSize(7.5);
-          doc.setTextColor(100, 100, 100);
-          doc.text(cell.label, ix, iy);
-          doc.setFont('helvetica', 'normal');
-          doc.setTextColor(20, 20, 20);
-          doc.text(cell.value || '________________________', ix + 30, iy);
-          ix += cell.w;
-        });
-        iy += 9;
-      });
-      cy += 30;
-
-      // Table columns
-      const cols = [
-        { label: '#',          w: 8,               align: 'center' },
-        { label: 'Product',    w: 50,              align: 'left'   },
-        { label: 'Origin',     w: 22,              align: 'left'   },
-        { label: 'Qty',        w: 11,              align: 'center' },
-        { label: 'Unit $',     w: 22,              align: 'right'  },
-        { label: 'Total $',    w: 22,              align: 'right'  },
-        { label: 'Description / Ingredients', w: CW - 135, align: 'left' },
-      ];
-
-      const HDR_H = 8, ROW_H = 9;
-
-      // Header row
-      doc.setFillColor(30, 41, 59);
-      doc.rect(ML, cy, CW, HDR_H, 'F');
-      doc.setFont('helvetica', 'bold');
-      doc.setFontSize(7.5);
-      doc.setTextColor(255, 255, 255);
-
-      let cx = ML;
-      cols.forEach(col => {
-        const tx = col.align === 'center' ? cx + col.w / 2 :
-                   col.align === 'right'  ? cx + col.w - 2 : cx + 2;
-        doc.text(col.label, tx, cy + 5.5, { align: col.align });
-        cx += col.w;
-      });
-      cy += HDR_H;
-
-      // Data rows
-      const activeTemplates = state.templates.filter(t => t.enabled !== false);
-      let grandTotal = 0;
-      activeTemplates.forEach((tmpl, idx) => {
-        // Customs qty: use customsQty field if set, else fall back to printCount
-        const qtyText    = tmpl.customsQty || String(Math.max(1, Math.floor(tmpl.printCount || 1)));
-        const qtyNum     = parseFloat(qtyText);
-        const isNumericQty = !isNaN(qtyNum) && String(qtyNum) === qtyText.trim();
-        const declaredVal  = parseFloat(tmpl.valueUsd) || 0;
-        // Count-based: show unit price + total = qty × unit price
-        // Weight/other: declared value IS the total for this item
-        const unitVal  = isNumericQty ? declaredVal : 0;
-        const rowTotal = isNumericQty ? qtyNum * declaredVal : declaredVal;
-        grandTotal += rowTotal;
-
-        if (idx % 2 === 1) {
-          doc.setFillColor(248, 250, 252);
-          doc.rect(ML, cy, CW, ROW_H, 'F');
-        }
-        doc.setDrawColor(220, 220, 220);
-        doc.setLineWidth(0.2);
-        doc.rect(ML, cy, CW, ROW_H);
-
-        doc.setFont('helvetica', 'normal');
-        doc.setFontSize(7.5);
-        doc.setTextColor(25, 25, 25);
-
-        const descText = [tmpl.description, tmpl.ingredients].filter(Boolean).join(' · ') || '—';
-        const cells = [
-          String(idx + 1),
-          tmpl.name || '—',
-          tmpl.countryOfOrigin || '—',
-          qtyText,
-          isNumericQty && declaredVal > 0 ? '$' + unitVal.toFixed(2) : '—',
-          declaredVal > 0 ? '$' + rowTotal.toFixed(2) : '—',
-          descText,
-        ];
-
-        cx = ML;
-        cols.forEach((col, ci) => {
-          const tx = col.align === 'center' ? cx + col.w / 2 :
-                     col.align === 'right'  ? cx + col.w - 2 : cx + 2;
-          const text = doc.splitTextToSize(cells[ci], col.w - 3)[0];
-          doc.text(text, tx, cy + 6, { align: col.align });
-          // vertical rule
-          doc.setDrawColor(220, 220, 220);
-          doc.line(cx + col.w, cy, cx + col.w, cy + ROW_H);
-          cx += col.w;
-        });
-        cy += ROW_H;
-      });
-
-      // Total row
-      doc.setFillColor(226, 232, 240);
-      doc.rect(ML, cy, CW, ROW_H, 'F');
-      doc.setDrawColor(100, 100, 100);
-      doc.setLineWidth(0.4);
-      doc.rect(ML, cy, CW, ROW_H);
-      doc.setFont('helvetica', 'bold');
-      doc.setFontSize(8);
-      doc.setTextColor(20, 20, 20);
-      doc.text('TOTAL DECLARED VALUE', ML + CW - cols[6].w - cols[5].w - 2, cy + 6, { align: 'right' });
-      doc.text('$' + grandTotal.toFixed(2), ML + CW - 2, cy + 6, { align: 'right' });
-      cy += ROW_H + 7;
-
-      // Exemption note
-      doc.setFont('helvetica', 'normal');
-      doc.setFontSize(7.5);
-      const remaining = 800 - grandTotal;
-      if (remaining >= 0) {
-        doc.setTextColor(22, 101, 52); // green
-        doc.text(`Total $${grandTotal.toFixed(2)} USD is within the $800 personal duty-free exemption ($${remaining.toFixed(2)} remaining).`, ML, cy);
-      } else {
-        doc.setTextColor(185, 28, 28); // red
-        doc.text(`Total $${grandTotal.toFixed(2)} USD exceeds the $800 personal exemption by $${Math.abs(remaining).toFixed(2)} — duties may apply.`, ML, cy);
-      }
-      cy += 9;
-
-      // Disclaimer bullets
-      doc.setTextColor(60, 60, 60);
-      doc.setFontSize(7.5);
-      [
-        'All items listed are for personal use only and are not intended for commercial resale.',
-        'I certify the information above is true and accurate to the best of my knowledge.',
-        'Food, agricultural, and other restricted items have been declared to CBP as required.',
-      ].forEach(line => {
-        doc.text('• ' + line, ML, cy);
-        cy += 5;
-      });
-      doc.save('customs-packing-list.pdf');
-    }
-
-    // ── Handlers ─────────────────────────────────────────────────────────────
-    function handleSave() {
+  }
+
+  // ── Event wiring ───────────────────────────────────────────────────────────
+  function initEvents() {
+    // New template
+    document.getElementById('new-btn').addEventListener('click', createTemplate);
+
+    // Export PDF
+    document.getElementById('export-btn').addEventListener('click', generatePDF);
+
+    // Delete
+    document.getElementById('delete-btn').addEventListener('click', () => {
+      if (state.selectedId) deleteTemplate(state.selectedId);
+    });
+
+    // Save / Discard
+    document.getElementById('save-btn').addEventListener('click', () => {
       if (!state.selectedId) return;
-      const nameEl = document.getElementById('f-name');
-      if (!nameEl.value.trim()) {
-        nameEl.setCustomValidity('Product name is required');
-        nameEl.reportValidity();
+      const vals = getFormValues();
+      if (!vals.name) {
+        document.getElementById('f-name').focus();
         return;
       }
-      nameEl.setCustomValidity('');
-      updateTemplate(state.selectedId, getFormValues());
+      updateTemplate(state.selectedId, vals);
       state.isDirty = false;
+      const tmpl = state.templates.find(t=>t.id===state.selectedId);
+      document.getElementById('crumb-name').textContent = tmpl?.name || '';
       renderSidebar();
-    }
-
-    function handleDelete(id) {
-      const tmpl = state.templates.find(t => t.id === id);
-      if (!tmpl) return;
-      if (!window.confirm(`Delete "${tmpl.name}"? This cannot be undone.`)) return;
-      deleteTemplate(id);
-    }
-
-    // ── Event Wiring ─────────────────────────────────────────────────────────
-    function initEventListeners() {
-      document.getElementById('new-btn').addEventListener('click', createTemplate);
-      document.getElementById('save-btn').addEventListener('click', handleSave);
-      document.getElementById('generate-pdf-btn').addEventListener('click', generatePDF);
-
-      // Customs modal
-      const customsModal = document.getElementById('customs-modal');
-      document.getElementById('customs-btn').addEventListener('click', () => {
-        const missing = state.templates.filter(t => !t.valueUsd || t.valueUsd <= 0).map(t => t.name);
-        if (missing.length > 0) {
-          const proceed = window.confirm(
-            `These items are missing a declared value:\n\n  • ${missing.join('\n  • ')}\n\nThey will show $0.00 on the customs list. Continue anyway?`
-          );
-          if (!proceed) return;
-        }
-        document.getElementById('cm-date').value = new Date().toISOString().split('T')[0];
-        customsModal.classList.remove('hidden');
-      });
-      document.getElementById('cm-cancel').addEventListener('click', () => {
-        customsModal.classList.add('hidden');
-      });
-      customsModal.addEventListener('click', e => {
-        if (e.target === customsModal) customsModal.classList.add('hidden');
-      });
-      document.getElementById('cm-generate').addEventListener('click', () => {
-        const info = {
-          name:   document.getElementById('cm-name').value.trim(),
-          date:   document.getElementById('cm-date').value,
-          flight: document.getElementById('cm-flight').value.trim(),
-          port:   document.getElementById('cm-port').value.trim(),
-        };
-        customsModal.classList.add('hidden');
-        generateCustomsPDF(info);
-      });
-
-      document.getElementById('paper-size').addEventListener('change', function () {
-        state.paperSize = this.value;
-      });
-
-      document.getElementById('sidebar-list').addEventListener('click', function (e) {
-        const target = e.target.closest('[data-id]');
-        if (!target) return;
-        if (target.dataset.action === 'toggle') {
-          e.stopPropagation();
-          // handled by change event below
-        } else if (target.dataset.action === 'delete') {
-          e.stopPropagation();
-          handleDelete(target.dataset.id);
-        } else if (target.dataset.action === 'select') {
-          selectTemplate(target.dataset.id, false);
-          setActiveTab('editor');
-        }
-      });
-
-      document.getElementById('sidebar-list').addEventListener('change', function (e) {
-        if (e.target.dataset.action === 'toggle') {
-          e.stopPropagation();
-          toggleTemplate(e.target.dataset.id);
-        }
-      });
-
-      document.getElementById('editor-form').addEventListener('input', function () {
-        state.isDirty = true;
-        renderPreview();
-      });
-
-      document.querySelectorAll('.tab-btn').forEach(btn => {
-        btn.addEventListener('click', () => setActiveTab(btn.dataset.tab));
-      });
-    }
-
-    // ── PWA: Service Worker ──────────────────────────────────────────────────
-    if ('serviceWorker' in navigator) {
-      window.addEventListener('load', () => {
-        navigator.serviceWorker.register('/labelforge/sw.js', { scope: '/labelforge/' })
-          .catch(err => console.warn('SW registration failed:', err));
-      });
-    }
-
-    // ── PWA: Install prompt ──────────────────────────────────────────────────
-    let deferredInstallPrompt = null;
-    const installBtn = document.getElementById('install-btn');
-
-    window.addEventListener('beforeinstallprompt', e => {
-      e.preventDefault();
-      deferredInstallPrompt = e;
-      installBtn.hidden = false;
+      renderPreview();
     });
 
-    installBtn.addEventListener('click', async () => {
-      if (!deferredInstallPrompt) return;
-      deferredInstallPrompt.prompt();
-      const { outcome } = await deferredInstallPrompt.userChoice;
-      if (outcome === 'accepted') installBtn.hidden = true;
-      deferredInstallPrompt = null;
-    });
-
-    window.addEventListener('appinstalled', () => {
-      installBtn.hidden = true;
-      deferredInstallPrompt = null;
-    });
-
-    // ── Init ─────────────────────────────────────────────────────────────────
-    document.addEventListener('DOMContentLoaded', () => {
-      loadTemplates();
-      renderSidebar();
+    document.getElementById('discard-btn').addEventListener('click', () => {
+      state.isDirty = false;
       renderEditor();
       renderPreview();
-      initEventListeners();
-      setActiveTab('sidebar');
     });
-  </script>
+
+    // Form input — live preview
+    document.getElementById('editor-form').addEventListener('input', () => {
+      state.isDirty = true;
+      const name = document.getElementById('f-name');
+      document.getElementById('name-hint').textContent = `${name.value.length} / 60 ch`;
+      // live-preview from form values
+      const tmpl = state.templates.find(t=>t.id===state.selectedId);
+      if (tmpl) {
+        const preview = { ...tmpl, ...getFormValues() };
+        if (state.viewMode === 'sticker') renderSticker(preview);
+      }
+    });
+
+    // Stepper
+    document.getElementById('count-dec').addEventListener('click', () => {
+      const el = document.getElementById('f-count');
+      el.value = Math.max(1, parseInt(el.value||1)-1);
+      el.dispatchEvent(new Event('input', {bubbles:true}));
+    });
+    document.getElementById('count-inc').addEventListener('click', () => {
+      const el = document.getElementById('f-count');
+      el.value = parseInt(el.value||1)+1;
+      el.dispatchEvent(new Event('input', {bubbles:true}));
+    });
+
+    // Paper size
+    document.getElementById('paper-seg').addEventListener('click', e => {
+      const btn = e.target.closest('button[data-val]');
+      if (!btn) return;
+      state.paperSize = btn.dataset.val;
+      document.querySelectorAll('#paper-seg button').forEach(b => {
+        b.setAttribute('aria-pressed', b.dataset.val === state.paperSize);
+      });
+      renderStatbar();
+      if (state.viewMode === 'sheet') renderPreview();
+    });
+
+    // View mode (sticker / sheet)
+    document.getElementById('view-seg').addEventListener('click', e => {
+      const btn = e.target.closest('button[data-mode]');
+      if (!btn) return;
+      state.viewMode = btn.dataset.mode;
+      document.querySelectorAll('#view-seg button').forEach(b => {
+        b.setAttribute('aria-pressed', b.dataset.mode === state.viewMode);
+      });
+      renderPreview();
+    });
+
+    // Sidebar list clicks
+    document.getElementById('sidebar-list').addEventListener('click', e => {
+      const del = e.target.closest('[data-action="delete"]');
+      if (del) { e.stopPropagation(); deleteTemplate(del.closest('[data-id]').dataset.id); return; }
+      const tog = e.target.closest('[data-action="toggle"]');
+      if (tog) { e.stopPropagation(); toggleTemplate(tog.closest('[data-id]').dataset.id); return; }
+      const item = e.target.closest('[data-id]');
+      if (item) selectTemplate(item.dataset.id);
+    });
+
+    document.getElementById('sidebar-list').addEventListener('change', e => {
+      const tog = e.target.closest('[data-action="toggle"]');
+      if (tog) toggleTemplate(tog.closest('[data-id]').dataset.id);
+    });
+
+    // Sidebar search
+    document.getElementById('sb-search-input').addEventListener('input', e => {
+      state.sbQuery = e.target.value;
+      renderSidebar();
+    });
+
+    // Sidebar filter tabs
+    document.querySelectorAll('.sb-tabs button').forEach(btn => {
+      btn.addEventListener('click', () => {
+        state.sbFilter = btn.dataset.filter;
+        document.querySelectorAll('.sb-tabs button').forEach(b => {
+          b.setAttribute('aria-pressed', b.dataset.filter === state.sbFilter);
+        });
+        renderSidebar();
+      });
+    });
+
+    // Customs modal
+    document.getElementById('customs-btn').addEventListener('click', () => {
+      const missing = state.templates.filter(t => t.enabled!==false && (!t.valueUsd || t.valueUsd<=0)).map(t=>t.name);
+      if (missing.length>0) {
+        if (!confirm(`These items have no declared value:\n\n  • ${missing.join('\n  • ')}\n\nThey will show $0.00. Continue?`)) return;
+      }
+      document.getElementById('cm-date').value = new Date().toISOString().split('T')[0];
+      document.getElementById('customs-modal').classList.add('open');
+    });
+    document.getElementById('cm-cancel').addEventListener('click', () => {
+      document.getElementById('customs-modal').classList.remove('open');
+    });
+    document.getElementById('customs-modal').addEventListener('click', e => {
+      if (e.target === document.getElementById('customs-modal'))
+        document.getElementById('customs-modal').classList.remove('open');
+    });
+    document.getElementById('cm-generate').addEventListener('click', () => {
+      const info = {
+        name:   document.getElementById('cm-name').value.trim(),
+        date:   document.getElementById('cm-date').value,
+        flight: document.getElementById('cm-flight').value.trim(),
+        port:   document.getElementById('cm-port').value.trim(),
+      };
+      document.getElementById('customs-modal').classList.remove('open');
+      generateCustomsPDF(info);
+    });
+
+    // Mobile tabs
+    document.querySelectorAll('.tab-btn').forEach(btn => {
+      btn.addEventListener('click', () => setTab(btn.dataset.tab));
+    });
+
+    // Keyboard shortcut ⌘S / Ctrl+S
+    document.addEventListener('keydown', e => {
+      if ((e.metaKey || e.ctrlKey) && e.key === 's') {
+        e.preventDefault();
+        document.getElementById('save-btn').click();
+      }
+    });
+
+    // Resize: re-evaluate panel visibility
+    window.addEventListener('resize', () => {
+      if (!isMobile()) {
+        ['sidebar-panel','editor-panel','preview-panel'].forEach(id => {
+          document.getElementById(id).hidden = false;
+        });
+      } else {
+        setTab(state.activeTab);
+      }
+    });
+  }
+
+  // ── PWA ────────────────────────────────────────────────────────────────────
+  if ('serviceWorker' in navigator) {
+    window.addEventListener('load', () => {
+      navigator.serviceWorker.register('/labelforge/sw.js', { scope: '/labelforge/' })
+        .catch(err => console.warn('SW:', err));
+    });
+  }
+
+  let deferredInstall = null;
+  const installBtn = document.getElementById('install-btn');
+  window.addEventListener('beforeinstallprompt', e => {
+    e.preventDefault(); deferredInstall = e;
+    installBtn.classList.add('visible');
+  });
+  installBtn.addEventListener('click', async () => {
+    if (!deferredInstall) return;
+    deferredInstall.prompt();
+    const { outcome } = await deferredInstall.userChoice;
+    if (outcome === 'accepted') installBtn.classList.remove('visible');
+    deferredInstall = null;
+  });
+  window.addEventListener('appinstalled', () => {
+    installBtn.classList.remove('visible'); deferredInstall = null;
+  });
+
+  // ── Init ───────────────────────────────────────────────────────────────────
+  document.addEventListener('DOMContentLoaded', () => {
+    loadTemplates();
+    buildRulers();
+    initEvents();
+    renderAll();
+    setTab('sidebar');
+  });
+</script>
 </body>
 </html>
